@@ -1,0 +1,82 @@
+# This is an example goreleaser.yaml file with some sane defaults.
+# Make sure to check the documentation at http://goreleaser.com
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod download
+
+builds:
+  - id: resource-gpu-debug
+    binary: resource-gpu.dbg
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+    hooks:
+      post:
+        - cp {{.Path}} ./resource-gpu-{{.Os}}.dbg
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+
+  # the best practice is using prebuilt builder
+  # however it's a Pro feature
+  - id: resource-gpu-linux
+    binary: resource-gpu
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -w -s
+      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+    hooks:
+      post:
+        - cp ./resource-gpu-{{.Os}}.dbg {{.Path}}
+        - strip {{.Path}}
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+  - id: resource-gpu-darwin
+    binary: resource-gpu
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -w -s
+      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+    goos:
+      - darwin
+    goarch:
+      - amd64
+
+archives:
+  - replacements:
+      darwin: Darwin
+      linux: Linux
+      windows: Windows
+      386: i386
+      amd64: x86_64
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  prerelease: auto
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+    - '^docs:'
+    - '^test:'

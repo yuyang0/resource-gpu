@@ -1,0 +1,7 @@
+etcd:
+    machines:
+        - http://127.0.0.1:2379
+    prefix: "/eru-gpu"
+
+scheduler:
+    max_deploy_count: 50
