@@ -10,7 +10,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func CalculateRemap() *cli.Command {
+func CalculateRemap() *cli.Command { //nolint
 	return &cli.Command{
 		Name:   binary.CalculateRemapCommand,
 		Usage:  "remap resource",

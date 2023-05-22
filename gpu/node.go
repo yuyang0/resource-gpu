@@ -20,7 +20,7 @@ import (
 )
 
 // AddNode .
-func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, info *enginetypes.Info) (resourcetypes.RawParams, error) {
+func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, _ *enginetypes.Info) (resourcetypes.RawParams, error) {
 	// try to get the node resource
 	var err error
 	if _, err = p.doGetNodeResourceInfo(ctx, nodename); err == nil {

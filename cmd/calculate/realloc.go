@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func CalculateRealloc() *cli.Command {
+func CalculateRealloc() *cli.Command { //nolint
 	return &cli.Command{
 		Name:   binary.CalculateReallocCommand,
 		Usage:  "calculate realloc plan",

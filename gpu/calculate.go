@@ -94,7 +94,7 @@ func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource 
 }
 
 // CalculateRemap .
-func (p Plugin) CalculateRemap(ctx context.Context, nodename string, workloadsResource map[string]plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
+func (p Plugin) CalculateRemap(context.Context, string, map[string]plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
 	return resourcetypes.RawParams{
 		"engine_params_map": nil,
 	}, nil

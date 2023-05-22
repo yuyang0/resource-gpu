@@ -9,7 +9,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-func CalculateDeploy() *cli.Command {
+func CalculateDeploy() *cli.Command { //nolint
 	return &cli.Command{
 		Name:   binary.CalculateDeployCommand,
 		Usage:  "calculate deploy plan",
