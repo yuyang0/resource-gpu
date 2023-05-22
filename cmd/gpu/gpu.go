@@ -1,8 +1,6 @@
 package gpu
 
 import (
-	"fmt"
-
 	"github.com/projecteru2/resource-gpu/cmd"
 	"github.com/projecteru2/resource-gpu/gpu"
 
@@ -20,7 +18,6 @@ func Name() *cli.Command {
 
 func name(c *cli.Context) error {
 	return cmd.Serve(c, func(s *gpu.Plugin, _ resourcetypes.RawParams) (interface{}, error) {
-		fmt.Print(s.Name())
-		return nil, nil
+		return s.Name(), nil
 	})
 }
