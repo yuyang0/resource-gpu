@@ -1,9 +1,11 @@
 package node
 
 import (
+	"github.com/cockroachdb/errors"
 	"github.com/projecteru2/core/resource/plugins/binary"
 	resourcetypes "github.com/projecteru2/core/resource/types"
 	"github.com/projecteru2/core/types"
+	coretypes "github.com/projecteru2/core/types"
 	"github.com/projecteru2/resource-gpu/cmd"
 	"github.com/projecteru2/resource-gpu/gpu"
 	"github.com/urfave/cli/v2"
@@ -25,7 +27,12 @@ func getNodeResourceInfo(c *cli.Context) error {
 		}
 
 		workloadsResource := in.SliceRawParams("workloads_resource")
-		return s.GetNodeResourceInfo(c.Context, nodename, workloadsResource)
+		r, err := s.GetNodeResourceInfo(c.Context, nodename, workloadsResource)
+		// when ETCD key doesn't exist, then return an empty NodeResourceInfo value
+		if err == nil || errors.Is(err, coretypes.ErrNodeNotExists) {
+			return r, nil
+		}
+		return r, err
 	})
 }
 

@@ -67,7 +67,8 @@ type WorkloadResourceRequest struct {
 
 // Validate .
 func (w *WorkloadResourceRequest) Validate() error {
-	if w.Count <= 0 || w.Count != len(w.GPUs) {
+	// when count == 0 and GPUs == nil, then it means this request doesn't need GPU
+	if w.Count != len(w.GPUs) {
 		return ErrInvalidGPU
 	}
 	if !w.MergeType.Validate() {
@@ -114,7 +115,7 @@ func (w *WorkloadResourceRequest) MergeFromResource(r *WorkloadResource, mergeTy
 		w.GPUs = w.GPUs[:count]
 		w.Count = count
 	case MergeTotol:
-		// use request overwrite resource, so do nothing here
+		// use request to overwrite resource, so do nothing here
 		return
 	}
 }

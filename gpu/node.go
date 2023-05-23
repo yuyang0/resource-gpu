@@ -19,6 +19,10 @@ import (
 	"github.com/sanity-io/litter"
 )
 
+const (
+	maxCapacity = 1000000
+)
+
 // AddNode .
 func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, _ *enginetypes.Info) (resourcetypes.RawParams, error) {
 	// try to get the node resource
@@ -27,7 +31,7 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 		return nil, coretypes.ErrNodeExists
 	}
 
-	if !errors.Is(err, coretypes.ErrInvaildCount) {
+	if !errors.IsAny(err, coretypes.ErrInvaildCount, coretypes.ErrNodeNotExists) {
 		log.WithFunc("resource.gpu.AddNode").WithField("node", nodename).Error(ctx, err, "failed to get resource info of node")
 		return nil, err
 	}
@@ -38,12 +42,8 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 	}
 
 	nodeResourceInfo := &gputypes.NodeResourceInfo{
-		Capacity: &gputypes.NodeResource{
-			GPUMap: req.GPUMap,
-		},
-		Usage: &gputypes.NodeResource{
-			GPUMap: gputypes.GPUMap{},
-		},
+		Capacity: gputypes.NewNodeResource(req.GPUMap),
+		Usage:    gputypes.NewNodeResource(nil),
 	}
 
 	if err = p.doSetNodeResourceInfo(ctx, nodename, nodeResourceInfo); err != nil {
@@ -235,7 +235,7 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 	nodeResourceInfo, err := p.doGetNodeResourceInfo(ctx, nodename)
 	if err != nil {
 		logger.Error(ctx, err)
-		return nil, nil, nil, err
+		return nodeResourceInfo, nil, nil, err
 	}
 
 	actuallyWorkloadsUsage := &gputypes.WorkloadResource{GPUMap: gputypes.GPUMap{}}
@@ -263,11 +263,24 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 }
 
 func (p Plugin) doGetNodeResourceInfo(ctx context.Context, nodename string) (*gputypes.NodeResourceInfo, error) {
-	resp, err := p.doGetNodesResourceInfo(ctx, []string{nodename})
+	key := fmt.Sprintf(nodeResourceInfoKey, nodename)
+	resp, err := p.store.Get(ctx, key)
 	if err != nil {
 		return nil, err
 	}
-	return resp[nodename], err
+
+	r := &gputypes.NodeResourceInfo{}
+	switch resp.Count {
+	case 0:
+		return r, errors.Wrapf(coretypes.ErrNodeNotExists, "key: %s", nodename)
+	case 1:
+		if err := json.Unmarshal(resp.Kvs[0].Value, r); err != nil {
+			return nil, err
+		}
+		return r, nil
+	default:
+		return nil, errors.Wrapf(coretypes.ErrInvaildCount, "key: %s", nodename)
+	}
 }
 
 func (p Plugin) doGetNodesResourceInfo(ctx context.Context, nodenames []string) (map[string]*gputypes.NodeResourceInfo, error) {
@@ -312,26 +325,31 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 	capacityInfo := &plugintypes.NodeDeployCapacity{
 		Weight: 1, // TODO why 1?
 	}
-	for {
-		nMatched := 0
-		for _, reqInfo := range req.GPUs {
-			matched := false
-			for addr, info := range availableResource.GPUMap {
-				if strings.Contains(info.Product, reqInfo.Product) {
-					delete(availableResource.GPUMap, addr)
-					matched = true
-					nMatched++
+	if req.Count == 0 { //nolint
+		// count equals to 0, then assign a big value to capacity
+		capacityInfo.Capacity = maxCapacity
+	} else {
+		for {
+			nMatched := 0
+			for _, reqInfo := range req.GPUs {
+				matched := false
+				for addr, info := range availableResource.GPUMap {
+					if strings.Contains(info.Product, reqInfo.Product) {
+						delete(availableResource.GPUMap, addr)
+						matched = true
+						nMatched++
+						break
+					}
+				}
+				if !matched {
 					break
 				}
 			}
-			if !matched {
+			if nMatched == len(req.GPUs) {
+				capacityInfo.Capacity++
+			} else {
 				break
 			}
-		}
-		if nMatched == len(req.GPUs) {
-			capacityInfo.Capacity++
-		} else {
-			break
 		}
 	}
 	capacityInfo.Usage = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())

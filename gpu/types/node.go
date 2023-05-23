@@ -10,9 +10,23 @@ type NodeResource struct {
 	GPUMap GPUMap `json:"gpu_map" mapstructure:"gpu_map"`
 }
 
+func NewNodeResource(gm GPUMap) *NodeResource {
+	r := &NodeResource{
+		GPUMap: gm,
+	}
+	if r.GPUMap == nil {
+		r.GPUMap = GPUMap{}
+	}
+	return r
+}
+
 // Parse .
 func (r *NodeResource) Parse(rawParams resourcetypes.RawParams) error {
 	return mapstructure.Decode(rawParams, r)
+}
+
+func (r *NodeResource) Validate() error {
+	return r.GPUMap.Validate()
 }
 
 // DeepCopy .
@@ -67,34 +81,11 @@ func (n *NodeResourceInfo) DeepCopy() *NodeResourceInfo {
 	}
 }
 
-// // RemoveEmptyCores .
-// func (n *NodeResourceInfo) RemoveEmptyCores() {
-// 	for cpu := range n.Capacity.CPUMap {
-// 		if n.Capacity.CPUMap[cpu] == 0 && n.Usage.CPUMap[cpu] == 0 {
-// 			delete(n.Capacity.CPUMap, cpu)
-// 		}
-// 	}
-// 	for cpu := range n.Usage.CPUMap {
-// 		if n.Capacity.CPUMap[cpu] == 0 && n.Usage.CPUMap[cpu] == 0 {
-// 			delete(n.Usage.CPUMap, cpu)
-// 		}
-// 	}
-
-// 	n.Capacity.CPU = float64(len(n.Capacity.CPUMap))
-// }
-
 func (n *NodeResourceInfo) Validate() error {
-	if len(n.Capacity.GPUMap) == 0 {
-		return ErrInvalidGPUMap
+	if err := n.Capacity.Validate(); err != nil {
+		return err
 	}
-
-	if n.Usage == nil {
-		n.Usage = &NodeResource{
-			GPUMap: GPUMap{},
-		}
-	}
-
-	return nil
+	return n.Usage.Validate()
 }
 
 func (n *NodeResourceInfo) GetAvailableResource() *NodeResource {
@@ -110,7 +101,13 @@ type NodeResourceRequest struct {
 }
 
 func (n *NodeResourceRequest) Parse(rawParams resourcetypes.RawParams) error {
-	return mapstructure.Decode(rawParams, n)
+	if err := mapstructure.Decode(rawParams, n); err != nil {
+		return err
+	}
+	if n.GPUMap == nil {
+		n.GPUMap = GPUMap{}
+	}
+	return nil
 }
 
 // Merge fields to NodeResourceRequest.

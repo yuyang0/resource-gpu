@@ -24,10 +24,12 @@ func TestAddNode(t *testing.T) {
 	req := plugintypes.NodeResourceRequest{
 		"gpu_map": types.GPUMap{
 			"0000:02:00.0": types.GPUInfo{
+				Address: "0000:02:00.0",
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
 			"0000:04:00.0": types.GPUInfo{
+				Address: "0000:04:00.0",
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
@@ -41,7 +43,11 @@ func TestAddNode(t *testing.T) {
 	assert.Equal(t, err, coretypes.ErrNodeExists)
 
 	// normal case
-	r, err := cm.AddNode(ctx, nodeForAdd, req, info)
+	r, err := cm.AddNode(ctx, "xxx", nil, nil)
+	assert.Nil(t, err)
+	cm.RemoveNode(ctx, "xxx")
+
+	r, err = cm.AddNode(ctx, nodeForAdd, req, info)
 	assert.Nil(t, err)
 	ni, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
@@ -55,10 +61,15 @@ func TestRemoveNode(t *testing.T) {
 	node := nodes[0]
 	nodeForDel := "test2"
 
-	err := cm.RemoveNode(ctx, node)
+	// node which doesn't exist in store
+	err := cm.RemoveNode(ctx, "xxx")
+	assert.Nil(t, err)
+
+	err = cm.RemoveNode(ctx, node)
 	assert.Nil(t, err)
 	err = cm.RemoveNode(ctx, nodeForDel)
 	assert.Nil(t, err)
+
 }
 
 func TestGetNodesDeployCapacity(t *testing.T) {
@@ -80,7 +91,12 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	assert.True(t, errors.Is(err, coretypes.ErrInvaildCount))
 
 	// normal
-	r, err := cm.GetNodesDeployCapacity(ctx, nodes, req)
+	// 1. empty request
+	r, err := cm.GetNodesDeployCapacity(ctx, nodes, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 2*maxCapacity, r["total"])
+
+	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, r["total"])
 
@@ -214,7 +230,7 @@ func TestGetAndFixNodeResourceInfo(t *testing.T) {
 
 	// invalid node
 	_, err := cm.GetNodeResourceInfo(ctx, "xxx", nil)
-	assert.True(t, errors.Is(err, coretypes.ErrInvaildCount))
+	assert.True(t, errors.Is(err, coretypes.ErrNodeNotExists))
 
 	r, err := cm.GetNodeResourceInfo(ctx, node, nil)
 	assert.Nil(t, err)
@@ -380,7 +396,7 @@ func TestGetMostIdleNode(t *testing.T) {
 	usage := plugintypes.NodeResourceRequest{
 		"gpu_map": types.GPUMap{
 			"0000:82:00.0": {
-				Address: "0000:92:00.0",
+				Address: "0000:82:00.0",
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},

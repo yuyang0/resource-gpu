@@ -2,7 +2,9 @@ package types
 
 import (
 	"encoding/json"
+	"strings"
 
+	"github.com/cockroachdb/errors"
 	resourcetypes "github.com/projecteru2/core/resource/types"
 )
 
@@ -31,6 +33,18 @@ func (gm GPUMap) Load(rawParams resourcetypes.RawParams) error {
 			return err
 		}
 		gm[k] = g
+	}
+	return nil
+}
+
+func (gm GPUMap) Validate() error {
+	for addr := range gm {
+		if addr != gm[addr].Address {
+			return errors.Wrapf(ErrInvalidGPUMap, "address key is not equal to Address in GPUInfo")
+		}
+		if strings.Trim(gm[addr].Product, " ") == "" {
+			return errors.Wrapf(ErrInvalidGPU, "product is empty")
+		}
 	}
 	return nil
 }

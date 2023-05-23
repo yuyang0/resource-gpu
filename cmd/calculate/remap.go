@@ -30,7 +30,7 @@ func calculateRemap(c *cli.Context) error {
 			workloadsResource[ID] = resourcetypes.RawParams{}
 			_ = mapstructure.Decode(data, workloadsResource[ID])
 		}
-		// NO NEED REMAP VOLUME
+		// NO NEED REMAP GPU
 		return s.CalculateRemap(c.Context, nodename, workloadsResource)
 	})
 }

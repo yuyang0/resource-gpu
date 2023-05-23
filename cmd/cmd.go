@@ -6,9 +6,11 @@ import (
 	"os"
 	"testing"
 
+	"github.com/projecteru2/core/log"
 	resourcetypes "github.com/projecteru2/core/resource/types"
 	"github.com/projecteru2/core/utils"
 	"github.com/projecteru2/resource-gpu/gpu"
+	zerolog "github.com/rs/zerolog/log"
 	"github.com/urfave/cli/v2"
 )
 
@@ -27,7 +29,9 @@ func Serve(c *cli.Context, f func(s *gpu.Plugin, in resourcetypes.RawParams) (in
 	if EmbeddedStorage {
 		t = &testing.T{}
 	}
-
+	if err := log.SetupLog(c.Context, config.LogLevel, config.SentryDSN); err != nil {
+		zerolog.Fatal().Err(err).Send()
+	}
 	s, err := gpu.NewPlugin(c.Context, config, t)
 	if err != nil {
 		return cli.Exit(err, 128)

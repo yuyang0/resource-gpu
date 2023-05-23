@@ -29,7 +29,8 @@ cloc:
 unit-test:
 	go vet `go list ./... | grep -v '/vendor/' | grep -v '/tools'` && \
 	go test -race -timeout 600s -count=1 -vet=off -cover \
-	./gpu/.
+	./gpu/. \
+	./gpu/types/.
 
 lint:
 	golangci-lint run

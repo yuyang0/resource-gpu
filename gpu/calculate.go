@@ -49,9 +49,9 @@ func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource 
 	if err := req.Parse(resourceRequest); err != nil {
 		return nil, err
 	}
-	// if err := req.Validate(); err != nil {
-	// 	return nil, err
-	// }
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	originResource := &gputypes.WorkloadResource{}
 	if err := originResource.Parse(resource); err != nil {
 		return nil, err

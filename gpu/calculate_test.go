@@ -47,15 +47,29 @@ func TestCalculateDeploy(t *testing.T) {
 		},
 	}
 	_, err = cm.CalculateDeploy(ctx, "xxx", 100, req)
-	assert.True(t, errors.Is(err, coretypes.ErrInvaildCount))
+	assert.True(t, errors.Is(err, coretypes.ErrNodeNotExists))
 
 	// normal cases
-	d, err := cm.CalculateDeploy(ctx, node, 4, req)
+	// 1. empty request
+	d, err := cm.CalculateDeploy(ctx, node, 4, nil)
 	assert.Nil(t, err)
 	assert.NotNil(t, d["engines_params"])
 	eParams := d["engines_params"].([]*types.EngineParams)
+	wResources := d["workloads_resource"].([]*types.WorkloadResource)
+	assert.Len(t, eParams, 4)
+	assert.Len(t, wResources, 4)
+	for i := 0; i < 4; i++ {
+		assert.Len(t, eParams[i].Addrs, 0)
+		assert.Len(t, wResources[i].GPUMap, 0)
+	}
+	// has enough resource
+	d, err = cm.CalculateDeploy(ctx, node, 4, req)
+	assert.Nil(t, err)
+	assert.NotNil(t, d["engines_params"])
+	eParams = d["engines_params"].([]*types.EngineParams)
 	assert.Len(t, eParams, 4)
 
+	// don't have enough resource
 	d, err = cm.CalculateDeploy(ctx, node, 5, req)
 	assert.Error(t, err)
 }
@@ -70,10 +84,12 @@ func TestCalculateRealloc(t *testing.T) {
 	resource := plugintypes.NodeResource{
 		"gpu_map": types.GPUMap{
 			"0000:02:00.0": types.GPUInfo{
+				Address: "0000:02:00.0",
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
 			"0000:82:00.0": types.GPUInfo{
+				Address: "0000:82:00.0",
 				Product: "GA105 [GeForce RTX 3090]",
 				Vendor:  "NVIDIA Corporation",
 			},
@@ -88,10 +104,33 @@ func TestCalculateRealloc(t *testing.T) {
 
 	// non-existent node
 	_, err = cm.CalculateRealloc(ctx, "xxx", origin, req)
-	assert.True(t, errors.Is(err, coretypes.ErrInvaildCount))
+	assert.True(t, errors.Is(err, coretypes.ErrNodeNotExists))
 
 	// normal cases
-	// overwirte
+	// 1. empty request and resource
+	d, err := cm.CalculateRealloc(ctx, node, nil, nil)
+	assert.Nil(t, err)
+	eParams := d["engine_params"].(*types.EngineParams)
+	wResource := d["workload_resource"].(*types.WorkloadResource)
+	assert.Len(t, eParams.Addrs, 0)
+	assert.Len(t, wResource.GPUMap, 0)
+	// 2. empty request
+	origin = plugintypes.WorkloadResource{
+		"gpu_map": types.GPUMap{
+			"0000:82:00.0": types.GPUInfo{
+				Product: "GA105 [GeForce RTX 3090]",
+				Vendor:  "NVIDIA Corporation",
+			},
+		},
+	}
+	d, err = cm.CalculateRealloc(ctx, node, origin, nil)
+	assert.Nil(t, err)
+	eParams = d["engine_params"].(*types.EngineParams)
+	wResource = d["workload_resource"].(*types.WorkloadResource)
+	assert.Len(t, eParams.Addrs, 1)
+	assert.Len(t, wResource.GPUMap, 1)
+	assert.Equal(t, eParams.Addrs[0], maps.Keys(wResource.GPUMap)[0])
+	// 3. overwirte resource with request
 	origin = plugintypes.WorkloadResource{
 		"gpu_map": types.GPUMap{
 			"0000:82:00.0": types.GPUInfo{
@@ -111,10 +150,10 @@ func TestCalculateRealloc(t *testing.T) {
 			},
 		},
 	}
-	d, err := cm.CalculateRealloc(ctx, node, origin, req)
+	d, err = cm.CalculateRealloc(ctx, node, origin, req)
 	assert.Nil(t, err)
-	eParams := d["engine_params"].(*types.EngineParams)
-	wResource := d["workload_resource"].(*types.WorkloadResource)
+	eParams = d["engine_params"].(*types.EngineParams)
+	wResource = d["workload_resource"].(*types.WorkloadResource)
 	assert.Len(t, eParams.Addrs, 2)
 	assert.True(t, strings.HasPrefix(eParams.Addrs[0], "0000:8"))
 	assert.True(t, strings.HasPrefix(eParams.Addrs[1], "0000:8"))
@@ -122,7 +161,7 @@ func TestCalculateRealloc(t *testing.T) {
 	for _, info := range maps.Values(wResource.GPUMap) {
 		assert.True(t, strings.Contains(info.Product, "3090"))
 	}
-	// Add GPU
+	// 4. Add origin resources to request
 	req = plugintypes.WorkloadResourceRequest{
 		"merge_type": types.MergeAdd,
 		"count":      2,
