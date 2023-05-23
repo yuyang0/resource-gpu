@@ -339,6 +339,18 @@ func TestSetNodeResourceUsage(t *testing.T) {
 		},
 	}
 
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 0)
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 0)
+
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResource, nil, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
