@@ -1,8 +1,8 @@
 package node
 
 import (
-	"github.com/projecteru2/resource-gpu/cmd"
-	"github.com/projecteru2/resource-gpu/gpu"
+	"github.com/yuyang0/resource-gpu/cmd"
+	"github.com/yuyang0/resource-gpu/gpu"
 
 	"github.com/mitchellh/mapstructure"
 	enginetypes "github.com/projecteru2/core/engine/types"

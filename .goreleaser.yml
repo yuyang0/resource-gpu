@@ -11,9 +11,9 @@ builds:
     env:
       - CGO_ENABLED=0
     ldflags:
-      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
-      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
-      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+      - -X github.com/yuyang0/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/yuyang0/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/yuyang0/resource-gpu/version.BUILTAT={{.Date}}
     hooks:
       post:
         - cp {{.Path}} ./resource-gpu-{{.Os}}.dbg
@@ -31,9 +31,9 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -w -s
-      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
-      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
-      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+      - -X github.com/yuyang0/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/yuyang0/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/yuyang0/resource-gpu/version.BUILTAT={{.Date}}
     hooks:
       post:
         - cp ./resource-gpu-{{.Os}}.dbg {{.Path}}
@@ -49,9 +49,9 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -w -s
-      - -X github.com/projecteru2/resource-gpu/version.REVISION={{.Commit}}
-      - -X github.com/projecteru2/resource-gpu/version.VERSION={{.Env.VERSION}}
-      - -X github.com/projecteru2/resource-gpu/version.BUILTAT={{.Date}}
+      - -X github.com/yuyang0/resource-gpu/version.REVISION={{.Commit}}
+      - -X github.com/yuyang0/resource-gpu/version.VERSION={{.Env.VERSION}}
+      - -X github.com/yuyang0/resource-gpu/version.BUILTAT={{.Date}}
     goos:
       - darwin
     goarch:

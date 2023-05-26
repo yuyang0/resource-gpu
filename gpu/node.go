@@ -15,8 +15,8 @@ import (
 	resourcetypes "github.com/projecteru2/core/resource/types"
 	coretypes "github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
-	gputypes "github.com/projecteru2/resource-gpu/gpu/types"
 	"github.com/sanity-io/litter"
+	gputypes "github.com/yuyang0/resource-gpu/gpu/types"
 )
 
 const (

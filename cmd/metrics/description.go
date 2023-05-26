@@ -1,8 +1,8 @@
 package metrics
 
 import (
-	"github.com/projecteru2/resource-gpu/cmd"
-	"github.com/projecteru2/resource-gpu/gpu"
+	"github.com/yuyang0/resource-gpu/cmd"
+	"github.com/yuyang0/resource-gpu/gpu"
 
 	"github.com/projecteru2/core/resource/plugins/binary"
 	resourcetypes "github.com/projecteru2/core/resource/types"

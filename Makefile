@@ -1,6 +1,6 @@
 .PHONY: deps binary build test cloc unit-test
 
-REPO_PATH := github.com/projecteru2/resource-gpu
+REPO_PATH := github.com/yuyang0/resource-gpu
 REVISION := $(shell git rev-parse HEAD || unknown)
 BUILTAT := $(shell date +%Y-%m-%dT%H:%M:%S)
 VERSION := $(shell git describe --tags $(shell git rev-list --tags --max-count=1))

@@ -8,7 +8,7 @@ import (
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
 	resourcetypes "github.com/projecteru2/core/resource/types"
 	coretypes "github.com/projecteru2/core/types"
-	gputypes "github.com/projecteru2/resource-gpu/gpu/types"
+	gputypes "github.com/yuyang0/resource-gpu/gpu/types"
 )
 
 // CalculateDeploy .

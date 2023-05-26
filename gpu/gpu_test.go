@@ -8,8 +8,8 @@ import (
 	enginetypes "github.com/projecteru2/core/engine/types"
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
 	coretypes "github.com/projecteru2/core/types"
-	"github.com/projecteru2/resource-gpu/gpu/types"
 	"github.com/stretchr/testify/assert"
+	"github.com/yuyang0/resource-gpu/gpu/types"
 )
 
 func TestName(t *testing.T) {
