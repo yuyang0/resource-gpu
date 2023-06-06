@@ -24,7 +24,7 @@ const (
 )
 
 // AddNode .
-func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, _ *enginetypes.Info) (resourcetypes.RawParams, error) {
+func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, info *enginetypes.Info) (resourcetypes.RawParams, error) {
 	// try to get the node resource
 	var err error
 	if _, err = p.doGetNodeResourceInfo(ctx, nodename); err == nil {
@@ -40,9 +40,20 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 	if err := req.Parse(resource); err != nil {
 		return nil, err
 	}
-
+	capacity := gputypes.NewNodeResource(req.GPUMap)
+	// try to fetch resource from info
+	if info != nil && info.Resources != nil { //nolint
+		if capacity.Len() == 0 {
+			if b, ok := info.Resources[p.name]; ok {
+				err := json.Unmarshal(b, capacity)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
 	nodeResourceInfo := &gputypes.NodeResourceInfo{
-		Capacity: gputypes.NewNodeResource(req.GPUMap),
+		Capacity: capacity,
 		Usage:    gputypes.NewNodeResource(nil),
 	}
 
