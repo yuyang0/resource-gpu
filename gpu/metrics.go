@@ -17,7 +17,7 @@ func (p Plugin) GetMetricsDescription(context.Context) (*plugintypes.GetMetricsD
 			"name":   "gpu_capacity",
 			"help":   "node available gpu.",
 			"type":   "gauge",
-			"labels": []string{"podname", "nodename", "cpuid"},
+			"labels": []string{"podname", "nodename"},
 		},
 		{
 			"name":   "gpu_used",
