@@ -1,10 +1,11 @@
 package node
 
 import (
+	"encoding/json"
+
 	"github.com/yuyang0/resource-gpu/cmd"
 	"github.com/yuyang0/resource-gpu/gpu"
 
-	"github.com/mitchellh/mapstructure"
 	enginetypes "github.com/projecteru2/core/engine/types"
 	"github.com/projecteru2/core/resource/plugins/binary"
 	resourcetypes "github.com/projecteru2/core/resource/types"
@@ -35,9 +36,13 @@ func addNode(c *cli.Context) error {
 			return nil, types.ErrEmptyNodeName
 		}
 		engineInfo := in.RawParams("info")
+		eInfoBytes, err := json.Marshal(engineInfo)
+		if err != nil {
+			return nil, err
+		}
 		resource := in.RawParams("resource")
 		info := &enginetypes.Info{}
-		if err := mapstructure.Decode(engineInfo, info); err != nil {
+		if err := json.Unmarshal(eInfoBytes, info); err != nil {
 			return nil, err
 		}
 		return s.AddNode(c.Context, nodename, resource, info)
