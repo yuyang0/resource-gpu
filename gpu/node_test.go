@@ -2,6 +2,7 @@ package gpu
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/cockroachdb/errors"
@@ -45,6 +46,13 @@ func TestAddNode(t *testing.T) {
 	// normal case
 	r, err := cm.AddNode(ctx, "xxx", nil, nil)
 	assert.Nil(t, err)
+	// check empty capacity
+	nr, err := cm.GetNodeResourceInfo(ctx, "xxx", nil)
+	assert.Nil(t, err)
+	cv, ok := nr["capacity"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, cv.Len(), 0)
+	assert.NotNil(t, cv.GPUMap)
 	cm.RemoveNode(ctx, "xxx")
 
 	r, err = cm.AddNode(ctx, nodeForAdd, req, info)
@@ -52,6 +60,39 @@ func TestAddNode(t *testing.T) {
 	ni, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, len(ni.GPUMap), 2)
+
+	// test engine info
+	nRes := types.NodeResource{
+		GPUMap: types.GPUMap{
+			"0000:00:00.0": {
+				Address: "0000:00:00.0",
+				Product: "GA104 [GeForce RTX 3070]",
+				Vendor:  "NVIDIA Corporation",
+			},
+			"0000:80:00.0": {
+				Address: "0000:80:00.0",
+				Product: "GA104 [GeForce RTX 3070]",
+				Vendor:  "NVIDIA Corporation",
+			},
+		},
+	}
+	data, err := json.Marshal(&nRes)
+	assert.Nil(t, err)
+	eInfo := &enginetypes.Info{
+		Resources: map[string][]byte{
+			"gpu": data,
+		},
+	}
+	r, err = cm.AddNode(ctx, "xxx1", nil, eInfo)
+	assert.Nil(t, err)
+
+	nr, err = cm.GetNodeResourceInfo(ctx, "xxx1", nil)
+	assert.Nil(t, err)
+	cv, ok = nr["capacity"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, cv.Len(), 2)
+	assert.NotNil(t, cv.GPUMap)
+	cm.RemoveNode(ctx, "xxx1")
 }
 
 func TestRemoveNode(t *testing.T) {
