@@ -368,19 +368,32 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 	return capacityInfo
 }
 
-// calculateNodeResource priority: node resource request > node resource > workload resource args list
-func (p Plugin) calculateNodeResource(req *gputypes.NodeResourceRequest, nodeResource *gputypes.NodeResource, origin *gputypes.NodeResource, workloadsResource []*gputypes.WorkloadResource, delta bool, incr bool) *gputypes.NodeResource {
-	var resp *gputypes.NodeResource
-	if origin == nil || !delta { // no delta means node resource rewrite with whole new data
-		resp = (&gputypes.NodeResource{}).DeepCopy() // init nil pointer!
-		// 这个接口最诡异的在于，如果 delta 为 false，意味着是全量写入
-		// 但这时候 incr 为 false 的话
-		// 实际上是 set 进了负值，所以这里 incr 应该强制为 true
-		incr = true
-	} else {
-		resp = origin.DeepCopy()
+// 丢弃origin，完全用新数据重写
+func (p Plugin) overwriteNodeResource(req *gputypes.NodeResourceRequest, nodeResource *gputypes.NodeResource, workloadsResource []*gputypes.WorkloadResource) *gputypes.NodeResource {
+	resp := (&gputypes.NodeResource{}).DeepCopy() // init nil pointer!
+	if req != nil {
+		nodeResource = &gputypes.NodeResource{
+			GPUMap: req.GPUMap,
+		}
 	}
 
+	if nodeResource != nil {
+		resp.Add(nodeResource)
+		return resp
+	}
+
+	for _, workloadResource := range workloadsResource {
+		nodeResource = &gputypes.NodeResource{
+			GPUMap: workloadResource.GPUMap,
+		}
+		resp.Add(nodeResource)
+	}
+	return resp
+}
+
+// 增量更新
+func (p Plugin) incrUpdateNodeResource(req *gputypes.NodeResourceRequest, nodeResource *gputypes.NodeResource, origin *gputypes.NodeResource, workloadsResource []*gputypes.WorkloadResource, incr bool) *gputypes.NodeResource {
+	resp := origin.DeepCopy()
 	if req != nil {
 		nodeResource = &gputypes.NodeResource{
 			GPUMap: req.GPUMap,
@@ -407,6 +420,15 @@ func (p Plugin) calculateNodeResource(req *gputypes.NodeResourceRequest, nodeRes
 		}
 	}
 	return resp
+}
+
+// calculateNodeResource priority: node resource request > node resource > workload resource args list
+func (p Plugin) calculateNodeResource(req *gputypes.NodeResourceRequest, nodeResource *gputypes.NodeResource, origin *gputypes.NodeResource, workloadsResource []*gputypes.WorkloadResource, delta bool, incr bool) *gputypes.NodeResource {
+	if origin == nil || !delta { // 重写
+		return p.overwriteNodeResource(req, nodeResource, workloadsResource)
+	} else { //nolint
+		return p.incrUpdateNodeResource(req, nodeResource, origin, workloadsResource, incr)
+	}
 }
 
 func (p Plugin) parseNodeResourceInfos(
