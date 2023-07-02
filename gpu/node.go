@@ -114,12 +114,24 @@ func (p Plugin) GetNodesDeployCapacity(ctx context.Context, nodenames []string, 
 }
 
 // SetNodeResourceCapacity sets the amount of total resource info
-func (p Plugin) SetNodeResourceCapacity(ctx context.Context, nodename string, resource plugintypes.NodeResource, resourceRequest plugintypes.NodeResourceRequest, delta bool, incr bool) (resourcetypes.RawParams, error) {
+func (p Plugin) SetNodeResourceCapacity(
+	ctx context.Context, nodename string,
+	resourceRequest plugintypes.NodeResourceRequest,
+	resource plugintypes.NodeResource,
+	delta bool, incr bool,
+) (
+	resourcetypes.RawParams, error,
+) {
 	logger := log.WithFunc("resource.gpu.SetNodeResourceCapacity").WithField("node", "nodename")
-	req, nodeResource, _, nodeResourceInfo, err := p.parseNodeResourceInfos(ctx, nodename, resource, resourceRequest, nil)
+	req, nodeResource, _, err := p.parseNodeResourceInfos(resourceRequest, resource, nil)
 	if err != nil {
 		return nil, err
 	}
+	nodeResourceInfo, err := p.doGetNodeResourceInfo(ctx, nodename)
+	if err != nil {
+		return nil, err
+	}
+
 	origin := nodeResourceInfo.Capacity
 	before := origin.DeepCopy()
 
@@ -172,12 +184,26 @@ func (p Plugin) SetNodeResourceInfo(ctx context.Context, nodename string, capaci
 }
 
 // SetNodeResourceUsage .
-func (p Plugin) SetNodeResourceUsage(ctx context.Context, nodename string, resource plugintypes.NodeResource, resourceRequest plugintypes.NodeResourceRequest, workloadsResource []plugintypes.WorkloadResource, delta bool, incr bool) (resourcetypes.RawParams, error) {
+func (p Plugin) SetNodeResourceUsage(
+	ctx context.Context, nodename string,
+	resourceRequest plugintypes.NodeResourceRequest,
+	resource plugintypes.NodeResource,
+	workloadsResource []plugintypes.WorkloadResource,
+	delta bool, incr bool,
+) (
+	resourcetypes.RawParams, error,
+) {
+
 	logger := log.WithFunc("resource.gpu.SetNodeResourceUsage").WithField("node", "nodename")
-	req, nodeResource, wrksResource, nodeResourceInfo, err := p.parseNodeResourceInfos(ctx, nodename, resource, resourceRequest, workloadsResource)
+	req, nodeResource, wrksResource, err := p.parseNodeResourceInfos(resourceRequest, resource, workloadsResource)
 	if err != nil {
 		return nil, err
 	}
+	nodeResourceInfo, err := p.doGetNodeResourceInfo(ctx, nodename)
+	if err != nil {
+		return nil, err
+	}
+
 	origin := nodeResourceInfo.Usage
 	before := origin.DeepCopy()
 
@@ -219,6 +245,7 @@ func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (resour
 }
 
 // FixNodeResource .
+// use workloadsReource to construct a new NodeResource, then use this NodeResource to repace Usage
 func (p Plugin) FixNodeResource(ctx context.Context, nodename string, workloadsResource []plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
 	nodeResourceInfo, actuallyWorkloadsUsage, diffs, err := p.getNodeResourceInfo(ctx, nodename, workloadsResource)
 	if err != nil {
@@ -424,6 +451,9 @@ func (p Plugin) incrUpdateNodeResource(req *gputypes.NodeResourceRequest, nodeRe
 
 // calculateNodeResource priority: node resource request > node resource > workload resource args list
 func (p Plugin) calculateNodeResource(req *gputypes.NodeResourceRequest, nodeResource *gputypes.NodeResource, origin *gputypes.NodeResource, workloadsResource []*gputypes.WorkloadResource, delta bool, incr bool) *gputypes.NodeResource {
+	// req, nodeResource, workloadResource只有一个会生效, 优先级是req, nodeResource, workloadsReource
+	// 如果delta为false那就不考虑origin
+	// 如果delta为true那就把3者中生效的那个加到origin上
 	if origin == nil || !delta { // 重写
 		return p.overwriteNodeResource(req, nodeResource, workloadsResource)
 	} else { //nolint
@@ -432,15 +462,13 @@ func (p Plugin) calculateNodeResource(req *gputypes.NodeResourceRequest, nodeRes
 }
 
 func (p Plugin) parseNodeResourceInfos(
-	ctx context.Context, nodename string,
-	resource plugintypes.NodeResource,
 	resourceRequest plugintypes.NodeResourceRequest,
+	resource plugintypes.NodeResource,
 	workloadsResource []plugintypes.WorkloadResource,
 ) (
 	*gputypes.NodeResourceRequest,
 	*gputypes.NodeResource,
 	[]*gputypes.WorkloadResource,
-	*gputypes.NodeResourceInfo,
 	error,
 ) {
 	var req *gputypes.NodeResourceRequest
@@ -450,28 +478,24 @@ func (p Plugin) parseNodeResourceInfos(
 	if resourceRequest != nil {
 		req = &gputypes.NodeResourceRequest{}
 		if err := req.Parse(resourceRequest); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	if resource != nil {
 		nodeResource = &gputypes.NodeResource{}
 		if err := nodeResource.Parse(resource); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	for _, workloadResource := range workloadsResource {
 		wrkResource := &gputypes.WorkloadResource{}
 		if err := wrkResource.Parse(workloadResource); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, err
 		}
 		wrksResource = append(wrksResource, wrkResource)
 	}
 
-	nodeResourceInfo, err := p.doGetNodeResourceInfo(ctx, nodename)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	return req, nodeResource, wrksResource, nodeResourceInfo, nil
+	return req, nodeResource, wrksResource, nil
 }

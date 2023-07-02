@@ -203,10 +203,12 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
 
+	resAddr := "0000:91:00.0"
+	reqAddr := "0000:92:00.0"
 	nodeResource := plugintypes.NodeResource{
 		"gpu_map": types.GPUMap{
-			"0000:91:00.0": {
-				Address: "0000:91:00.0",
+			resAddr: {
+				Address: resAddr,
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
@@ -215,52 +217,89 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 
 	nodeResourceRequest := plugintypes.NodeResourceRequest{
 		"gpu_map": types.GPUMap{
-			"0000:92:00.0": {
-				Address: "0000:92:00.0",
+			reqAddr: {
+				Address: reqAddr,
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
 		},
 	}
 
-	// noChangeRequest := plugintypes.NodeResourceRequest{
-	// 	"cpu":    "0:100,1:100,2:100,3:100",
-	// 	"memory": fmt.Sprintf("%v", 2*units.GB),
-	// }
+	checkAddr := func(res *types.NodeResource, addr string) bool {
+		_, ok := res.GPUMap[addr]
+		return ok
+	}
 
-	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResource, nil, true, true)
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 8)
+	assert.False(t, checkAddr(v, resAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, true, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 8)
+	assert.False(t, checkAddr(v, reqAddr))
+	assert.False(t, checkAddr(v, resAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 9)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 8)
+	assert.False(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 9)
+	assert.True(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResource, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
+	assert.False(t, checkAddr(v, resAddr))
 
-	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResourceRequest, true, true)
-	assert.Nil(t, err)
-	v, ok = r["after"].(*types.NodeResource)
-	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 9)
-
-	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResourceRequest, true, false)
-	assert.Nil(t, err)
-	v, ok = r["after"].(*types.NodeResource)
-	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
-
-	// r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResourceRequest, false, true)
-	// assert.Nil(t, err)
-	// assert.Len(t, r.After["cpu_map"], 4)
-
+	// overwirte node resource
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, false, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, resAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nodeResource, false, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, false, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 0)
 }
 
 func TestGetAndFixNodeResourceInfo(t *testing.T) {
@@ -348,10 +387,13 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 0)
 
+	resAddr := "0000:91:00.0"
+	reqAddr := "0000:92:00.0"
+	wrkAddr := "0000:93:00.0"
 	nodeResource := plugintypes.NodeResource{
 		"gpu_map": types.GPUMap{
-			"0000:91:00.0": {
-				Address: "0000:91:00.0",
+			resAddr: {
+				Address: resAddr,
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
@@ -360,8 +402,8 @@ func TestSetNodeResourceUsage(t *testing.T) {
 
 	nodeResourceRequest := plugintypes.NodeResourceRequest{
 		"gpu_map": types.GPUMap{
-			"0000:92:00.0": {
-				Address: "0000:92:00.0",
+			reqAddr: {
+				Address: reqAddr,
 				Product: "GA104 [GeForce RTX 3070]",
 				Vendor:  "NVIDIA Corporation",
 			},
@@ -371,8 +413,8 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	workloadsResource := []plugintypes.WorkloadResource{
 		{
 			"gpu_map": types.GPUMap{
-				"0000:93:00.0": {
-					Address: "0000:93:00.0",
+				wrkAddr: {
+					Address: wrkAddr,
 					Product: "GA104 [GeForce RTX 3070]",
 					Vendor:  "NVIDIA Corporation",
 				},
@@ -380,6 +422,10 @@ func TestSetNodeResourceUsage(t *testing.T) {
 		},
 	}
 
+	checkAddr := func(res *types.NodeResource, addr string) bool {
+		_, ok := res.GPUMap[addr]
+		return ok
+	}
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
@@ -392,25 +438,27 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 0)
 
-	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResource, nil, nil, true, true)
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
 
-	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResource, nil, nil, true, false)
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 0)
 
-	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResourceRequest, nil, true, true)
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, resAddr))
 
-	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResourceRequest, nil, true, false)
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
@@ -421,6 +469,7 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, wrkAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, true, false)
 	assert.Nil(t, err)
@@ -434,11 +483,58 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 0)
 
-	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResourceRequest, nil, false, false)
+	// overwirte usage node resource
+	// one params
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, false, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, resAddr))
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, false, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, wrkAddr))
+
+	// two parmas
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, nil, false, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, workloadsResource, false, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, workloadsResource, false, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, resAddr))
+
+	// three params
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, workloadsResource, false, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Len(), 1)
+	assert.True(t, checkAddr(v, reqAddr))
 }
 
 func TestGetMostIdleNode(t *testing.T) {

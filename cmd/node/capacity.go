@@ -46,8 +46,8 @@ func setNodeResourceCapacity(c *cli.Context) error {
 
 		incr := in.Bool("incr")
 		delta := in.Bool("delta")
-		resource := in.RawParams("resource")
 		resourceRequest := in.RawParams("resource_request")
-		return s.SetNodeResourceCapacity(c.Context, nodename, resource, resourceRequest, delta, incr)
+		resource := in.RawParams("resource")
+		return s.SetNodeResourceCapacity(c.Context, nodename, resourceRequest, resource, delta, incr)
 	})
 }

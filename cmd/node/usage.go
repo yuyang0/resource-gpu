@@ -29,6 +29,6 @@ func setNodeResourceUsage(c *cli.Context) error {
 		resource := in.RawParams("resource")
 		resourceRequest := in.RawParams("resource_request")
 		workloadsResource := in.SliceRawParams("workloads_resource")
-		return s.SetNodeResourceUsage(c.Context, nodename, resource, resourceRequest, workloadsResource, delta, incr)
+		return s.SetNodeResourceUsage(c.Context, nodename, resourceRequest, resource, workloadsResource, delta, incr)
 	})
 }

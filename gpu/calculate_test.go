@@ -96,7 +96,7 @@ func TestCalculateRealloc(t *testing.T) {
 		},
 	}
 
-	_, err := cm.SetNodeResourceUsage(ctx, node, resource, nil, nil, false, true)
+	_, err := cm.SetNodeResourceUsage(ctx, node, nil, resource, nil, false, true)
 	assert.Nil(t, err)
 
 	origin := plugintypes.WorkloadResource{}
