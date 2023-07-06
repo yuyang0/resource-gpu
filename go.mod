@@ -7,7 +7,6 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/projecteru2/core v0.0.0-20230606024007-b4db1600e120
-	github.com/rs/zerolog v1.29.1
 	github.com/sanity-io/litter v1.5.5
 	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli/v2 v2.25.1
@@ -61,6 +60,7 @@ require (
 	github.com/prometheus/common v0.42.0 // indirect
 	github.com/prometheus/procfs v0.9.0 // indirect
 	github.com/rogpeppe/go-internal v1.10.0 // indirect
+	github.com/rs/zerolog v1.29.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/soheilhy/cmux v0.1.5 // indirect
