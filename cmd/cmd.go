@@ -47,7 +47,7 @@ func Serve(c *cli.Context, f func(s *gpu.Plugin, in resourcetypes.RawParams) (in
 	} else if o, err := json.Marshal(r); err != nil {
 		fmt.Fprintf(os.Stderr, "GPU: failed encode return object: %s\n", err)
 		fmt.Fprintf(os.Stderr, "GPU: input: %v\n", in)
-		fmt.Fprintf(os.Stderr, "GPU: output: %v\n", o)
+		fmt.Fprintf(os.Stderr, "GPU: output: %v\n", r)
 		return cli.Exit(err, 128)
 	} else {
 		fmt.Print(string(o))
