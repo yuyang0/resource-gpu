@@ -231,7 +231,10 @@ func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (resour
 	}
 
 	for nodename, nodeResourceInfo := range nodesResourceInfo {
-		idle := float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
+		var idle float64
+		if nodeResourceInfo.CapLen() > 0 {
+			idle = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
+		}
 
 		if idle < minIdle {
 			mostIdleNode = nodename
@@ -390,8 +393,10 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 			}
 		}
 	}
-	capacityInfo.Usage = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
-	capacityInfo.Rate = float64(len(req.GPUs)) / float64(nodeResourceInfo.CapLen())
+	if nodeResourceInfo.CapLen() > 0 {
+		capacityInfo.Usage = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
+		capacityInfo.Rate = float64(len(req.GPUs)) / float64(nodeResourceInfo.CapLen())
+	}
 	return capacityInfo
 }
 

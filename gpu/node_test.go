@@ -116,7 +116,17 @@ func TestRemoveNode(t *testing.T) {
 func TestGetNodesDeployCapacity(t *testing.T) {
 	ctx := context.Background()
 	cm := initGPU(ctx, t)
-	nodes := generateNodes(ctx, t, cm, 2, 0)
+	nodes := generateEmptyNodes(ctx, t, cm, 2, 0)
+	r, err := cm.GetNodesDeployCapacity(ctx, nodes, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 2*maxCapacity, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, float64(0), cap.Usage)
+		assert.Equal(t, float64(0), cap.Rate)
+	}
+
+	nodes = generateNodes(ctx, t, cm, 2, 0)
 
 	req := plugintypes.WorkloadResourceRequest{
 		"count": 2,
@@ -128,12 +138,12 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	}
 
 	// non-existent node
-	_, err := cm.GetNodesDeployCapacity(ctx, []string{"xxx"}, req)
+	_, err = cm.GetNodesDeployCapacity(ctx, []string{"xxx"}, req)
 	assert.True(t, errors.Is(err, coretypes.ErrInvaildCount))
 
 	// normal
 	// 1. empty request
-	r, err := cm.GetNodesDeployCapacity(ctx, nodes, nil)
+	r, err = cm.GetNodesDeployCapacity(ctx, nodes, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 2*maxCapacity, r["total"])
 
