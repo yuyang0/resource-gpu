@@ -2,5 +2,9 @@ package types
 
 // EngineParams .
 type EngineParams struct {
-	Addrs []string `json:"addrs" mapstructure:"addrs"`
+	ProdCountMap ProdCountMap `json:"prod_count_map" mapstructure:"prod_count_map"`
+}
+
+func (ep *EngineParams) Count() int {
+	return ep.ProdCountMap.TotalCount()
 }

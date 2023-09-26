@@ -7,15 +7,15 @@ import (
 
 // NodeResource indicate node cpumem resource
 type NodeResource struct {
-	GPUMap GPUMap `json:"gpu_map" mapstructure:"gpu_map"`
+	ProdCountMap ProdCountMap `json:"prod_count_map" mapstructure:"prod_count_map"`
 }
 
-func NewNodeResource(gm GPUMap) *NodeResource {
+func NewNodeResource(gm ProdCountMap) *NodeResource {
 	r := &NodeResource{
-		GPUMap: gm,
+		ProdCountMap: gm,
 	}
-	if r.GPUMap == nil {
-		r.GPUMap = GPUMap{}
+	if r.ProdCountMap == nil {
+		r.ProdCountMap = ProdCountMap{}
 	}
 	return r
 }
@@ -26,38 +26,30 @@ func (r *NodeResource) Parse(rawParams resourcetypes.RawParams) error {
 }
 
 func (r *NodeResource) Validate() error {
-	return r.GPUMap.Validate()
+	return r.ProdCountMap.Validate()
 }
 
 // DeepCopy .
 func (r *NodeResource) DeepCopy() *NodeResource {
 	res := &NodeResource{
-		GPUMap: GPUMap{},
-	}
-
-	for addr := range r.GPUMap {
-		res.GPUMap[addr] = r.GPUMap[addr]
+		ProdCountMap: r.ProdCountMap.DeepCopy(),
 	}
 	return res
 }
 
 // Add .
 func (r *NodeResource) Add(r1 *NodeResource) {
-	for addr, info := range r1.GPUMap {
-		r.GPUMap[addr] = info
-	}
+	r.ProdCountMap.Add(r1.ProdCountMap)
 }
 
 // Sub .
 func (r *NodeResource) Sub(r1 *NodeResource) {
-	for addr := range r1.GPUMap {
-		delete(r.GPUMap, addr)
-	}
+	r.ProdCountMap.Sub(r1.ProdCountMap)
 }
 
 // Len
 func (r *NodeResource) Len() int {
-	return len(r.GPUMap)
+	return r.ProdCountMap.TotalCount()
 }
 
 // NodeResourceInfo indicate cpumem capacity and usage
@@ -67,10 +59,11 @@ type NodeResourceInfo struct {
 }
 
 func (n *NodeResourceInfo) CapLen() int {
-	return len(n.Capacity.GPUMap)
+	return n.Capacity.Len()
 }
+
 func (n *NodeResourceInfo) UsageLen() int {
-	return len(n.Usage.GPUMap)
+	return n.Usage.Len()
 }
 
 // DeepCopy .
@@ -97,15 +90,15 @@ func (n *NodeResourceInfo) GetAvailableResource() *NodeResource {
 
 // NodeResourceRequest includes all possible fields passed by eru-core for editing node, it not parsed!
 type NodeResourceRequest struct {
-	GPUMap GPUMap `json:"gpu_map" mapstructure:"gpu_map"`
+	ProdCountMap ProdCountMap `json:"prod_count_map" mapstructure:"prod_count_map"`
 }
 
 func (n *NodeResourceRequest) Parse(rawParams resourcetypes.RawParams) error {
 	if err := mapstructure.Decode(rawParams, n); err != nil {
 		return err
 	}
-	if n.GPUMap == nil {
-		n.GPUMap = GPUMap{}
+	if n.ProdCountMap == nil {
+		n.ProdCountMap = ProdCountMap{}
 	}
 	return nil
 }
@@ -115,7 +108,7 @@ func (n *NodeResourceRequest) LoadFromOrigin(nodeResource *NodeResource, resourc
 	if n == nil {
 		return
 	}
-	if !resourceRequest.IsSet("gpu_map") {
-		n.GPUMap = nodeResource.GPUMap
+	if !resourceRequest.IsSet("prod_count_map") {
+		n.ProdCountMap = nodeResource.ProdCountMap
 	}
 }

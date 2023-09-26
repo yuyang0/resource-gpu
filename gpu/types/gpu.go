@@ -1,64 +1,72 @@
 package types
 
 import (
-	"encoding/json"
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	resourcetypes "github.com/projecteru2/core/resource/types"
 )
 
-type GPUInfo struct {
-	Address string `json:"address" mapstructure:"address"`
-	Index   int    `json:"index" mapstructure:"index"`
-	// example value: "NVIDIA Corporation"
-	Vendor string `json:"vendor" mapstructure:"vendor"`
-	// example value: "GA104 [GeForce RTX 3070]"
-	Product string `json:"product" mapstructure:"product"`
+type ProdCountMap map[string]int
 
-	// NUMA NUMAInfo
-	NumaID string `json:"numa_id" mapstructure:"numa_id"`
-
-	// Cores   int   `json:"cores" mapstructure:"cores"`
-	GMemory int64 `json:"gmemory" mapstructure:"gmemory"`
-}
-
-type GPUMap map[string]GPUInfo
-
-func (gm GPUMap) Load(rawParams resourcetypes.RawParams) error {
-	for k, v := range rawParams {
-		g := GPUInfo{}
-		vs := v.(string)
-		if err := json.Unmarshal([]byte(vs), &g); err != nil {
-			return err
+func (pcm ProdCountMap) Validate() error {
+	for prod, count := range pcm {
+		if count <= 0 {
+			return errors.Wrapf(ErrInvalidGPUMap, "count is less or equal to zero")
 		}
-		gm[k] = g
-	}
-	return nil
-}
-
-func (gm GPUMap) Validate() error {
-	for addr := range gm {
-		if addr != gm[addr].Address {
-			return errors.Wrapf(ErrInvalidGPUMap, "address key is not equal to Address in GPUInfo")
-		}
-		if strings.Trim(gm[addr].Product, " ") == "" {
-			return errors.Wrapf(ErrInvalidGPU, "product is empty")
+		if strings.Trim(prod, " ") == "" {
+			return errors.Wrapf(ErrInvalidGPUProduct, "product is empty")
 		}
 	}
 	return nil
 }
 
-func (gm GPUMap) Add(g1 GPUMap) {
-	for addr, info := range g1 {
-		gm[addr] = info
+func (pcm ProdCountMap) ValidateProd() error {
+	for prod := range pcm {
+		if strings.Trim(prod, " ") == "" {
+			return errors.Wrapf(ErrInvalidGPUProduct, "product is empty")
+		}
+	}
+	return nil
+}
+
+func (pcm ProdCountMap) ValidateCount() error {
+	for prod, count := range pcm {
+		if count <= 0 {
+			return errors.Wrapf(ErrInvalidGPUMap, "%s: count is less or equal to zero", prod)
+		}
+	}
+	return nil
+}
+
+func (pcm ProdCountMap) Add(g1 ProdCountMap) {
+	for prod, count := range g1 {
+		pcm[prod] += count
 	}
 }
 
-func (gm GPUMap) Sub(g1 GPUMap) {
-	for addr := range g1 {
-		delete(gm, addr)
+func (pcm ProdCountMap) Sub(g1 ProdCountMap) {
+	for prod, count := range g1 {
+		pcm[prod] -= count
+		if pcm[prod] <= 0 {
+			delete(pcm, prod)
+		}
 	}
+}
+
+func (pcm ProdCountMap) DeepCopy() ProdCountMap {
+	cp := make(ProdCountMap)
+	for k, v := range pcm {
+		cp[k] = v
+	}
+	return cp
+}
+
+func (pcm ProdCountMap) TotalCount() int {
+	totalCount := 0
+	for _, count := range pcm {
+		totalCount += count
+	}
+	return totalCount
 }
 
 // NUMA map[address]nodeID

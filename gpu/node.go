@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"strings"
 
 	"github.com/cockroachdb/errors"
 	enginetypes "github.com/projecteru2/core/engine/types"
@@ -40,7 +39,7 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 	if err := req.Parse(resource); err != nil {
 		return nil, err
 	}
-	capacity := gputypes.NewNodeResource(req.GPUMap)
+	capacity := gputypes.NewNodeResource(req.ProdCountMap)
 	// try to fetch resource from info
 	if info != nil && info.Resources != nil { //nolint
 		if capacity.Len() == 0 {
@@ -257,7 +256,7 @@ func (p Plugin) FixNodeResource(ctx context.Context, nodename string, workloadsR
 
 	if len(diffs) != 0 {
 		nodeResourceInfo.Usage = &gputypes.NodeResource{
-			GPUMap: actuallyWorkloadsUsage.GPUMap,
+			ProdCountMap: actuallyWorkloadsUsage.ProdCountMap,
 		}
 		if err = p.doSetNodeResourceInfo(ctx, nodename, nodeResourceInfo); err != nil {
 			log.WithFunc("resource.gpu.FixNodeResource").Error(ctx, err)
@@ -279,7 +278,7 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 		return nodeResourceInfo, nil, nil, err
 	}
 
-	actuallyWorkloadsUsage := &gputypes.WorkloadResource{GPUMap: gputypes.GPUMap{}}
+	actuallyWorkloadsUsage := &gputypes.WorkloadResource{ProdCountMap: gputypes.ProdCountMap{}}
 	for _, workloadResource := range workloadsResource {
 		workloadUsage := &gputypes.WorkloadResource{}
 		if err := workloadUsage.Parse(workloadResource); err != nil {
@@ -291,11 +290,11 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 
 	diffs := []string{}
 
-	if actuallyWorkloadsUsage.Len() != nodeResourceInfo.UsageLen() {
-		diffs = append(diffs, fmt.Sprintf("node.GPUUsed != sum(workload.GPURequest): %.2d != %.2d", nodeResourceInfo.UsageLen(), actuallyWorkloadsUsage.Len()))
+	if actuallyWorkloadsUsage.Count() != nodeResourceInfo.UsageLen() {
+		diffs = append(diffs, fmt.Sprintf("node.GPUUsed != sum(workload.GPURequest): %.2d != %.2d", nodeResourceInfo.UsageLen(), actuallyWorkloadsUsage.Count()))
 	}
-	for addr := range actuallyWorkloadsUsage.GPUMap {
-		if _, ok := nodeResourceInfo.Usage.GPUMap[addr]; !ok {
+	for addr := range actuallyWorkloadsUsage.ProdCountMap {
+		if _, ok := nodeResourceInfo.Usage.ProdCountMap[addr]; !ok {
 			diffs = append(diffs, fmt.Sprintf("%s not in usage", addr))
 		}
 	}
@@ -364,38 +363,30 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 	availableResource := nodeResourceInfo.GetAvailableResource()
 
 	capacityInfo := &plugintypes.NodeDeployCapacity{
-		Weight: 1, // TODO why 1?
+		Weight:   1, // TODO why 1?
+		Capacity: maxCapacity,
 	}
-	if req.Count == 0 { //nolint
-		// count equals to 0, then assign a big value to capacity
+	if req.Count() == 0 { //nolint
+		// if count equals to 0, then assign a big value to capacity
 		capacityInfo.Capacity = maxCapacity
 	} else {
-		for {
-			nMatched := 0
-			for _, reqInfo := range req.GPUs {
-				matched := false
-				for addr, info := range availableResource.GPUMap {
-					if strings.Contains(info.Product, reqInfo.Product) {
-						delete(availableResource.GPUMap, addr)
-						matched = true
-						nMatched++
-						break
-					}
-				}
-				if !matched {
-					break
-				}
+		for reqProd, reqCount := range req.ProdCountMap {
+			// don't need to check if reqProd exist in availableResource here,
+			// because if reqProd doesn't exist in availableResource, then count is 0
+			// and prodCap and capacityInfo.Capacity will be 0 too, so it will also break the loop
+			count := availableResource.ProdCountMap[reqProd]
+			prodCap := count / reqCount
+			if prodCap < capacityInfo.Capacity {
+				capacityInfo.Capacity = prodCap
 			}
-			if nMatched == len(req.GPUs) {
-				capacityInfo.Capacity++
-			} else {
+			if capacityInfo.Capacity <= 0 {
 				break
 			}
 		}
 	}
 	if nodeResourceInfo.CapLen() > 0 {
 		capacityInfo.Usage = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
-		capacityInfo.Rate = float64(len(req.GPUs)) / float64(nodeResourceInfo.CapLen())
+		capacityInfo.Rate = float64(req.Count()) / float64(nodeResourceInfo.CapLen())
 	}
 	return capacityInfo
 }
@@ -405,7 +396,7 @@ func (p Plugin) overwriteNodeResource(req *gputypes.NodeResourceRequest, nodeRes
 	resp := (&gputypes.NodeResource{}).DeepCopy() // init nil pointer!
 	if req != nil {
 		nodeResource = &gputypes.NodeResource{
-			GPUMap: req.GPUMap,
+			ProdCountMap: req.ProdCountMap,
 		}
 	}
 
@@ -416,7 +407,7 @@ func (p Plugin) overwriteNodeResource(req *gputypes.NodeResourceRequest, nodeRes
 
 	for _, workloadResource := range workloadsResource {
 		nodeResource = &gputypes.NodeResource{
-			GPUMap: workloadResource.GPUMap,
+			ProdCountMap: workloadResource.ProdCountMap,
 		}
 		resp.Add(nodeResource)
 	}
@@ -428,7 +419,7 @@ func (p Plugin) incrUpdateNodeResource(req *gputypes.NodeResourceRequest, nodeRe
 	resp := origin.DeepCopy()
 	if req != nil {
 		nodeResource = &gputypes.NodeResource{
-			GPUMap: req.GPUMap,
+			ProdCountMap: req.ProdCountMap,
 		}
 	}
 
@@ -443,7 +434,7 @@ func (p Plugin) incrUpdateNodeResource(req *gputypes.NodeResourceRequest, nodeRe
 
 	for _, workloadResource := range workloadsResource {
 		nodeResource = &gputypes.NodeResource{
-			GPUMap: workloadResource.GPUMap,
+			ProdCountMap: workloadResource.ProdCountMap,
 		}
 		if incr {
 			resp.Add(nodeResource)

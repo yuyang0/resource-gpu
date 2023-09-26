@@ -74,28 +74,21 @@ func generateEmptyNodes(
 }
 
 func generateNodeResourceRequests(t *testing.T, nums int, index int, namePrefix string, numGPUs int) map[string]plugintypes.NodeResourceRequest {
-	addrs := []string{
-		"0000:00:00.0", "0000:01:00.0", "0000:02:00.0", "0000:03:00.0",
-		"0000:80:00.0", "0000:81:00.0", "0000:82:00.0", "0000:83:00.0",
+	gpuMap := types.ProdCountMap{
+		"nvidia-3070": numGPUs / 2,
+		"nvidia-3090": numGPUs / 2,
 	}
-	addrs = addrs[:numGPUs]
-	gInfo := types.GPUInfo{
-		Product: "GA104 [GeForce RTX 3070]",
-		Vendor:  "NVIDIA Corporation",
-	}
-	gpuMap := types.GPUMap{}
-	for idx, addr := range addrs {
-		gInfo.Address = addr
-		if idx >= len(addrs)/2 {
-			gInfo.Product = "GA105 [GeForce RTX 3090]"
+
+	for prod, count := range gpuMap {
+		if count <= 0 {
+			delete(gpuMap, prod)
 		}
-		gpuMap[addr] = gInfo
 	}
 
 	infos := map[string]plugintypes.NodeResourceRequest{}
 	for i := index; i < index+nums; i++ {
 		info := plugintypes.NodeResourceRequest{
-			"gpu_map": gpuMap,
+			"prod_count_map": gpuMap,
 		}
 		infos[fmt.Sprintf("%s%v", namePrefix, i)] = info
 	}

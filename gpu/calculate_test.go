@@ -2,15 +2,13 @@ package gpu
 
 import (
 	"context"
-	"strings"
+	"errors"
 	"testing"
 
-	"github.com/cockroachdb/errors"
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
 	coretypes "github.com/projecteru2/core/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/yuyang0/resource-gpu/gpu/types"
-	"golang.org/x/exp/maps"
 )
 
 func TestCalculateDeploy(t *testing.T) {
@@ -21,29 +19,19 @@ func TestCalculateDeploy(t *testing.T) {
 
 	// invalid opts
 	req := plugintypes.WorkloadResourceRequest{
-		"count": 1,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3070",
-			},
-			{
-				Product: "3090",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": -1,
+			"nvidia-3090": 1,
 		},
 	}
 	_, err := cm.CalculateDeploy(ctx, node, 100, req)
-	assert.True(t, errors.Is(err, types.ErrInvalidGPU))
+	assert.True(t, errors.Is(err, types.ErrInvalidGPUMap))
 
 	// non-existent node
 	req = plugintypes.WorkloadResourceRequest{
-		"count": 2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3070",
-			},
-			{
-				Product: "3090",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+			"nvidia-3090": 1,
 		},
 	}
 	_, err = cm.CalculateDeploy(ctx, "xxx", 100, req)
@@ -59,8 +47,8 @@ func TestCalculateDeploy(t *testing.T) {
 	assert.Len(t, eParams, 4)
 	assert.Len(t, wResources, 4)
 	for i := 0; i < 4; i++ {
-		assert.Len(t, eParams[i].Addrs, 0)
-		assert.Len(t, wResources[i].GPUMap, 0)
+		assert.Equal(t, eParams[i].ProdCountMap.TotalCount(), 0)
+		assert.Equal(t, wResources[i].Count(), 0)
 	}
 	// has enough resource
 	d, err = cm.CalculateDeploy(ctx, node, 4, req)
@@ -82,17 +70,9 @@ func TestCalculateRealloc(t *testing.T) {
 
 	// set capacity
 	resource := plugintypes.NodeResource{
-		"gpu_map": types.GPUMap{
-			"0000:02:00.0": types.GPUInfo{
-				Address: "0000:02:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
-			"0000:82:00.0": types.GPUInfo{
-				Address: "0000:82:00.0",
-				Product: "GA105 [GeForce RTX 3090]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+			"nvidia-3090": 1,
 		},
 	}
 
@@ -112,68 +92,61 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams := d["engine_params"].(*types.EngineParams)
 	wResource := d["workload_resource"].(*types.WorkloadResource)
-	assert.Len(t, eParams.Addrs, 0)
-	assert.Len(t, wResource.GPUMap, 0)
+	assert.Equal(t, eParams.Count(), 0)
+	assert.Equal(t, wResource.Count(), 0)
 	// 2. empty request
 	origin = plugintypes.WorkloadResource{
-		"gpu_map": types.GPUMap{
-			"0000:82:00.0": types.GPUInfo{
-				Product: "GA105 [GeForce RTX 3090]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
 		},
 	}
 	d, err = cm.CalculateRealloc(ctx, node, origin, nil)
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
-	assert.Len(t, eParams.Addrs, 1)
-	assert.Len(t, wResource.GPUMap, 1)
-	assert.Equal(t, eParams.Addrs[0], maps.Keys(wResource.GPUMap)[0])
+
+	assert.Equal(t, eParams.Count(), 1)
+	count, ok := eParams.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+
+	assert.Equal(t, wResource.Count(), 1)
+	count, ok = wResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
 	// 3. overwirte resource with request
 	origin = plugintypes.WorkloadResource{
-		"gpu_map": types.GPUMap{
-			"0000:82:00.0": types.GPUInfo{
-				Product: "GA105 [GeForce RTX 3090]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
 		},
 	}
 
 	req = plugintypes.WorkloadResourceRequest{
-		"merge_type": types.MergeTotol,
-		"count":      2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "GA105 [GeForce RTX 3090]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 2,
 		},
 	}
 	d, err = cm.CalculateRealloc(ctx, node, origin, req)
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
-	assert.Len(t, eParams.Addrs, 2)
-	assert.True(t, strings.HasPrefix(eParams.Addrs[0], "0000:8"))
-	assert.True(t, strings.HasPrefix(eParams.Addrs[1], "0000:8"))
-	assert.Len(t, wResource.GPUMap, 2)
-	for _, info := range maps.Values(wResource.GPUMap) {
-		assert.True(t, strings.Contains(info.Product, "3090"))
-	}
+	assert.Equal(t, eParams.Count(), 3)
+	assert.Equal(t, wResource.Count(), 3)
+
+	count, ok = wResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 3)
+
 	// 4. Add origin resources to request
+	origin = plugintypes.WorkloadResource{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
+		},
+	}
 	req = plugintypes.WorkloadResourceRequest{
-		"merge_type": types.MergeAdd,
-		"count":      2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3090",
-				Vendor:  "NVIDIA Corporation",
-			},
-			{
-				Product: "3070",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
+			"nvidia-3070": 1,
 		},
 	}
 
@@ -181,27 +154,33 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
-	assert.Len(t, eParams.Addrs, 3)
-	// assert.True(t, strings.Contains(eParams.Addrs[0], "8"))
-	// assert.True(t, strings.Contains(eParams.Addrs[1], "8"))
-	assert.Len(t, wResource.GPUMap, 3)
-	// for _, info := range maps.Values(wResource.GPUMap) {
-	// 	assert.True(t, strings.Contains(info.Product, "3090"))
-	// }
+
+	assert.Equal(t, eParams.Count(), 3)
+	count, ok = eParams.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+	count, ok = eParams.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 2)
+
+	assert.Equal(t, wResource.Count(), 3)
+	count, ok = wResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+	count, ok = wResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 2)
 
 	// remove GPU
+	origin = plugintypes.WorkloadResource{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
+		},
+	}
 	req = plugintypes.WorkloadResourceRequest{
-		"merge_type": types.MergeSub,
-		"count":      2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3090",
-				Vendor:  "NVIDIA Corporation",
-			},
-			{
-				Product: "3070",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": -1,
+			"nvidia-3070": 1,
 		},
 	}
 
@@ -209,12 +188,11 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
-	assert.Len(t, eParams.Addrs, 1)
-	assert.True(t, strings.HasPrefix(eParams.Addrs[0], "0000:0"))
-	assert.Len(t, wResource.GPUMap, 1)
-	for _, info := range maps.Values(wResource.GPUMap) {
-		assert.True(t, strings.Contains(info.Product, "3070"))
-	}
+	assert.Equal(t, eParams.Count(), 1)
+	assert.Equal(t, wResource.Count(), 1)
+	count, ok = wResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
 }
 
 func TestCalculateRemap(t *testing.T) {

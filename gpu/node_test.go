@@ -3,9 +3,9 @@ package gpu
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
-	"github.com/cockroachdb/errors"
 	"github.com/docker/go-units"
 	enginetypes "github.com/projecteru2/core/engine/types"
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
@@ -23,17 +23,8 @@ func TestAddNode(t *testing.T) {
 	nodeForAdd := "test2"
 
 	req := plugintypes.NodeResourceRequest{
-		"gpu_map": types.GPUMap{
-			"0000:02:00.0": types.GPUInfo{
-				Address: "0000:02:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
-			"0000:04:00.0": types.GPUInfo{
-				Address: "0000:04:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 2,
 		},
 	}
 
@@ -52,28 +43,19 @@ func TestAddNode(t *testing.T) {
 	cv, ok := nr["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, cv.Len(), 0)
-	assert.NotNil(t, cv.GPUMap)
+	assert.NotNil(t, cv.ProdCountMap)
 	cm.RemoveNode(ctx, "xxx")
 
 	r, err = cm.AddNode(ctx, nodeForAdd, req, info)
 	assert.Nil(t, err)
 	ni, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, len(ni.GPUMap), 2)
+	assert.Equal(t, ni.Len(), 2)
 
 	// test engine info
 	nRes := types.NodeResource{
-		GPUMap: types.GPUMap{
-			"0000:00:00.0": {
-				Address: "0000:00:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
-			"0000:80:00.0": {
-				Address: "0000:80:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		ProdCountMap: types.ProdCountMap{
+			"nvidia-3070": 2,
 		},
 	}
 	data, err := json.Marshal(&nRes)
@@ -91,7 +73,7 @@ func TestAddNode(t *testing.T) {
 	cv, ok = nr["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, cv.Len(), 2)
-	assert.NotNil(t, cv.GPUMap)
+	assert.NotNil(t, cv.ProdCountMap)
 	cm.RemoveNode(ctx, "xxx1")
 }
 
@@ -129,11 +111,8 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	nodes = generateNodes(ctx, t, cm, 2, 0)
 
 	req := plugintypes.WorkloadResourceRequest{
-		"count": 2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3070",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 2,
 		},
 	}
 
@@ -152,27 +131,30 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	assert.Equal(t, 4, r["total"])
 
 	// more gpu
-	req["count"] = 3
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 3,
+		},
+	}
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, r["total"])
 
 	// more gpu
-	req["count"] = 5
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 5,
+		},
+	}
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, r["total"])
 
 	// 2 diffirent type of gpus
 	req = plugintypes.WorkloadResourceRequest{
-		"count": 2,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3070",
-			},
-			{
-				Product: "3090",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+			"nvidia-3090": 1,
 		},
 	}
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
@@ -180,17 +162,9 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	assert.Equal(t, 8, r["total"])
 
 	req = plugintypes.WorkloadResourceRequest{
-		"count": 3,
-		"gpus": []types.GPUInfo{
-			{
-				Product: "3070",
-			},
-			{
-				Product: "3090",
-			},
-			{
-				Product: "3090",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+			"nvidia-3090": 2,
 		},
 	}
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
@@ -213,31 +187,16 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
 
-	resAddr := "0000:91:00.0"
-	reqAddr := "0000:92:00.0"
 	nodeResource := plugintypes.NodeResource{
-		"gpu_map": types.GPUMap{
-			resAddr: {
-				Address: resAddr,
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
 		},
 	}
 
 	nodeResourceRequest := plugintypes.NodeResourceRequest{
-		"gpu_map": types.GPUMap{
-			reqAddr: {
-				Address: reqAddr,
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
 		},
-	}
-
-	checkAddr := func(res *types.NodeResource, addr string) bool {
-		_, ok := res.GPUMap[addr]
-		return ok
 	}
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, true, true)
@@ -245,43 +204,36 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
-	assert.False(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
-	assert.False(t, checkAddr(v, reqAddr))
-	assert.False(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 9)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
-	assert.False(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 9)
-	assert.True(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResource, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 8)
-	assert.False(t, checkAddr(v, resAddr))
 
 	// overwirte node resource
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, false, false)
@@ -289,21 +241,18 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nodeResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, false, false)
 	assert.Nil(t, err)
@@ -333,17 +282,9 @@ func TestGetAndFixNodeResourceInfo(t *testing.T) {
 
 	workloadsResource := []plugintypes.WorkloadResource{
 		{
-			"gpu_map": types.GPUMap{
-				"0000:01:00.0": {
-					Address: "0000:01:00.0",
-					Product: "GA104 [GeForce RTX 3070]",
-					Vendor:  "NVIDIA Corporation",
-				},
-				"0000:81:00.0": {
-					Address: "0000:81:00.0",
-					Product: "GA105 [GeForce RTX 3090]",
-					Vendor:  "NVIDIA Corporation",
-				},
+			"prod_count_map": types.ProdCountMap{
+				"nvidia-3070": 1,
+				"nvidia-3090": 1,
 			},
 		},
 	}
@@ -356,8 +297,8 @@ func TestGetAndFixNodeResourceInfo(t *testing.T) {
 	assert.Len(t, r["diffs"].([]string), 3)
 	usage := r["usage"].(*types.NodeResource)
 	assert.Equal(t, usage.Len(), 2)
-	_, ok := usage.GPUMap["0000:81:00.0"]
-	assert.True(t, ok)
+	// _, ok := usage.ProdCountMap["0000:81:00.0"]
+	// assert.True(t, ok)
 }
 
 func TestSetNodeResourceInfo(t *testing.T) {
@@ -370,16 +311,16 @@ func TestSetNodeResourceInfo(t *testing.T) {
 	assert.Nil(t, err)
 	cv, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, 8, len(cv.GPUMap))
+	assert.Equal(t, 8, cv.Len())
 	uv, ok := r["usage"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, 0, len(uv.GPUMap))
+	assert.Equal(t, 0, uv.Len())
 
 	rcv := resourcetypes.RawParams{
-		"gpu_map": cv.GPUMap,
+		"prod_count_map": cv.ProdCountMap,
 	}
 	ucv := resourcetypes.RawParams{
-		"gpu_map": uv.GPUMap,
+		"prod_count_map": uv.ProdCountMap,
 	}
 	err = cm.SetNodeResourceInfo(ctx, "node-2", rcv, ucv)
 	assert.Nil(t, err)
@@ -397,45 +338,26 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 0)
 
-	resAddr := "0000:91:00.0"
-	reqAddr := "0000:92:00.0"
-	wrkAddr := "0000:93:00.0"
 	nodeResource := plugintypes.NodeResource{
-		"gpu_map": types.GPUMap{
-			resAddr: {
-				Address: resAddr,
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
 		},
 	}
 
 	nodeResourceRequest := plugintypes.NodeResourceRequest{
-		"gpu_map": types.GPUMap{
-			reqAddr: {
-				Address: reqAddr,
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
 		},
 	}
 
 	workloadsResource := []plugintypes.WorkloadResource{
 		{
-			"gpu_map": types.GPUMap{
-				wrkAddr: {
-					Address: wrkAddr,
-					Product: "GA104 [GeForce RTX 3070]",
-					Vendor:  "NVIDIA Corporation",
-				},
+			"prod_count_map": types.ProdCountMap{
+				"nvidia-3070": 1,
 			},
 		},
 	}
 
-	checkAddr := func(res *types.NodeResource, addr string) bool {
-		_, ok := res.GPUMap[addr]
-		return ok
-	}
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
@@ -453,7 +375,6 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, false)
 	assert.Nil(t, err)
@@ -466,7 +387,6 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, false)
 	assert.Nil(t, err)
@@ -479,7 +399,6 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, wrkAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, true, false)
 	assert.Nil(t, err)
@@ -500,21 +419,18 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, resAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, wrkAddr))
 
 	// two parmas
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, nil, false, true)
@@ -522,21 +438,18 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, workloadsResource, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, workloadsResource, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, resAddr))
 
 	// three params
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, workloadsResource, false, true)
@@ -544,7 +457,6 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Len(), 1)
-	assert.True(t, checkAddr(v, reqAddr))
 }
 
 func TestGetMostIdleNode(t *testing.T) {
@@ -553,12 +465,8 @@ func TestGetMostIdleNode(t *testing.T) {
 	nodes := generateNodes(ctx, t, cm, 2, 0)
 
 	usage := plugintypes.NodeResourceRequest{
-		"gpu_map": types.GPUMap{
-			"0000:82:00.0": {
-				Address: "0000:82:00.0",
-				Product: "GA104 [GeForce RTX 3070]",
-				Vendor:  "NVIDIA Corporation",
-			},
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
 		},
 	}
 

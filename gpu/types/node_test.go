@@ -8,7 +8,7 @@ import (
 
 func TestNodeResource(t *testing.T) {
 	nParams := map[string]any{
-		"gpu_map": nil,
+		"prod_count_map": nil,
 	}
 	n := &NodeResource{}
 	err := n.Parse(nParams)
@@ -19,18 +19,21 @@ func TestNodeResource(t *testing.T) {
 	assert.Nil(t, err)
 
 	nParams = map[string]any{
-		"gpu_map1": nil,
+		"prod_count_map1": nil,
 	}
 	n = &NodeResource{}
 	err = n.Parse(nParams)
 	assert.Nil(t, err)
-	assert.Nil(t, n.GPUMap)
+	assert.Nil(t, n.ProdCountMap)
 
 	nParams = map[string]any{
-		"gpu_map": GPUMap{
-			"add1": {
-				Address: "addr1",
-			},
+		"prod_count_map": ProdCountMap{
+			"nvidia-3070": 4,
+			"nvidia-3090": 2,
 		},
 	}
+	n = &NodeResource{}
+	err = n.Parse(nParams)
+	assert.Nil(t, err)
+	assert.Equal(t, n.ProdCountMap.TotalCount(), 6)
 }

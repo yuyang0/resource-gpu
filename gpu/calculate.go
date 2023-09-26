@@ -2,7 +2,6 @@ package gpu
 
 import (
 	"context"
-	"strings"
 
 	"github.com/projecteru2/core/log"
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
@@ -49,14 +48,17 @@ func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource 
 	if err := req.Parse(resourceRequest); err != nil {
 		return nil, err
 	}
-	if err := req.Validate(); err != nil {
+	// realloc needs negative count, so only validate prod here.
+	if err := req.ValidateProd(); err != nil {
 		return nil, err
 	}
 	originResource := &gputypes.WorkloadResource{}
 	if err := originResource.Parse(resource); err != nil {
 		return nil, err
 	}
-
+	if err := originResource.Validate(); err != nil {
+		return nil, err
+	}
 	nodeResourceInfo, err := p.doGetNodeResourceInfo(ctx, nodename)
 	if err != nil {
 		log.WithFunc("resource.gpu.CalculateRealloc").WithField("node", nodename).Error(ctx, err, "failed to get resource info of node")
@@ -65,11 +67,12 @@ func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource 
 
 	// put resources back into the resource pool
 	nodeResourceInfo.Usage.Sub(&gputypes.NodeResource{
-		GPUMap: originResource.GPUMap,
+		ProdCountMap: originResource.ProdCountMap,
 	})
 
 	newReq := req.DeepCopy()
-	newReq.MergeFromResource(originResource, req.MergeType)
+	newReq.MergeFromResource(originResource)
+
 	if err = newReq.Validate(); err != nil {
 		return nil, err
 	}
@@ -107,35 +110,27 @@ func (p Plugin) doAlloc(resourceInfo *gputypes.NodeResourceInfo, deployCount int
 
 	availableResource := resourceInfo.GetAvailableResource()
 	for i := 0; i < deployCount; i++ {
-		gpuMap := gputypes.GPUMap{}
-		var addrs []string
-		nMatched := 0
-		for _, reqInfo := range req.GPUs {
-			matched := false
-			for addr, info := range availableResource.GPUMap {
-				if strings.Contains(info.Product, reqInfo.Product) {
-					delete(availableResource.GPUMap, addr)
-					gpuMap[addr] = info
-					addrs = append(addrs, addr)
-					matched = true
-					nMatched++
-					break
-				}
+		prodCountMap := gputypes.ProdCountMap{}
+		for reqProd, reqCount := range req.ProdCountMap {
+			capCount, ok := availableResource.ProdCountMap[reqProd]
+			if !ok || capCount < reqCount {
+				err = coretypes.ErrInsufficientResource
+				return enginesParams, workloadsResource, err
 			}
-			if !matched {
-				break
-			}
+			availableResource.ProdCountMap[reqProd] -= reqCount
+			prodCountMap[reqProd] = reqCount
 		}
-		if nMatched == len(req.GPUs) {
-			workloadsResource = append(workloadsResource, &gputypes.WorkloadResource{GPUMap: gpuMap})
+		if req.Count() == prodCountMap.TotalCount() {
+			workloadsResource = append(workloadsResource, &gputypes.WorkloadResource{
+				ProdCountMap: prodCountMap.DeepCopy(),
+			})
 			enginesParams = append(enginesParams, &gputypes.EngineParams{
-				Addrs: addrs,
+				ProdCountMap: prodCountMap.DeepCopy(),
 			})
 		} else {
 			err = coretypes.ErrInsufficientResource
 			break
 		}
 	}
-
 	return enginesParams, workloadsResource, err
 }
