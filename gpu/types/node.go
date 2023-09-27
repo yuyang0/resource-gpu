@@ -107,6 +107,10 @@ func (n *NodeResourceRequest) Validate() error {
 	return n.ProdCountMap.Validate()
 }
 
+func (n *NodeResourceRequest) Count() int {
+	return n.ProdCountMap.TotalCount()
+}
+
 // Merge fields to NodeResourceRequest.
 func (n *NodeResourceRequest) LoadFromOrigin(nodeResource *NodeResource, resourceRequest resourcetypes.RawParams) {
 	if n == nil {

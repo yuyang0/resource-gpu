@@ -1,8 +1,10 @@
 package types
 
 import (
+	"encoding/json"
 	"testing"
 
+	resourcetypes "github.com/projecteru2/core/resource/types"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,4 +44,27 @@ func TestNodeResourceRequest(t *testing.T) {
 	req := &NodeResourceRequest{}
 	err := req.Parse(nil)
 	assert.Nil(t, err)
+}
+
+func TestJsonLoadNodeReqResp(t *testing.T) {
+	j1 := `
+{
+	"prod_count_map": {
+		"nvidia-3070": 4,
+		":nvidia-3090": 2
+	}
+}
+	`
+	obj := resourcetypes.RawParams{}
+	err := json.Unmarshal([]byte(j1), &obj)
+	assert.Nil(t, err)
+	req := &NodeResourceRequest{}
+	err = req.Parse(obj)
+	assert.Nil(t, err)
+	assert.Equal(t, req.Count(), 6)
+
+	res := &NodeResource{}
+	err = res.Parse(obj)
+	assert.Nil(t, err)
+	assert.Equal(t, res.Count(), 6)
 }
