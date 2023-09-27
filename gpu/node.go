@@ -39,10 +39,13 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 	if err := req.Parse(resource); err != nil {
 		return nil, err
 	}
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
 	capacity := gputypes.NewNodeResource(req.ProdCountMap)
 	// try to fetch resource from info
 	if info != nil && info.Resources != nil { //nolint
-		if capacity.Len() == 0 {
+		if capacity.Count() == 0 {
 			if b, ok := info.Resources[p.name]; ok {
 				err := json.Unmarshal(b, capacity)
 				if err != nil {
@@ -231,8 +234,8 @@ func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (resour
 
 	for nodename, nodeResourceInfo := range nodesResourceInfo {
 		var idle float64
-		if nodeResourceInfo.CapLen() > 0 {
-			idle = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
+		if nodeResourceInfo.CapCount() > 0 {
+			idle = float64(nodeResourceInfo.UsageCount()) / float64(nodeResourceInfo.CapCount())
 		}
 
 		if idle < minIdle {
@@ -290,8 +293,8 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 
 	diffs := []string{}
 
-	if actuallyWorkloadsUsage.Count() != nodeResourceInfo.UsageLen() {
-		diffs = append(diffs, fmt.Sprintf("node.GPUUsed != sum(workload.GPURequest): %.2d != %.2d", nodeResourceInfo.UsageLen(), actuallyWorkloadsUsage.Count()))
+	if actuallyWorkloadsUsage.Count() != nodeResourceInfo.UsageCount() {
+		diffs = append(diffs, fmt.Sprintf("node.GPUUsed != sum(workload.GPURequest): %.2d != %.2d", nodeResourceInfo.UsageCount(), actuallyWorkloadsUsage.Count()))
 	}
 	for addr := range actuallyWorkloadsUsage.ProdCountMap {
 		if _, ok := nodeResourceInfo.Usage.ProdCountMap[addr]; !ok {
@@ -384,9 +387,9 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 			}
 		}
 	}
-	if nodeResourceInfo.CapLen() > 0 {
-		capacityInfo.Usage = float64(nodeResourceInfo.UsageLen()) / float64(nodeResourceInfo.CapLen())
-		capacityInfo.Rate = float64(req.Count()) / float64(nodeResourceInfo.CapLen())
+	if nodeResourceInfo.CapCount() > 0 {
+		capacityInfo.Usage = float64(nodeResourceInfo.UsageCount()) / float64(nodeResourceInfo.CapCount())
+		capacityInfo.Rate = float64(req.Count()) / float64(nodeResourceInfo.CapCount())
 	}
 	return capacityInfo
 }

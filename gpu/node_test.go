@@ -42,7 +42,7 @@ func TestAddNode(t *testing.T) {
 	assert.Nil(t, err)
 	cv, ok := nr["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, cv.Len(), 0)
+	assert.Equal(t, cv.Count(), 0)
 	assert.NotNil(t, cv.ProdCountMap)
 	cm.RemoveNode(ctx, "xxx")
 
@@ -50,7 +50,7 @@ func TestAddNode(t *testing.T) {
 	assert.Nil(t, err)
 	ni, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, ni.Len(), 2)
+	assert.Equal(t, ni.Count(), 2)
 
 	// test engine info
 	nRes := types.NodeResource{
@@ -72,7 +72,7 @@ func TestAddNode(t *testing.T) {
 	assert.Nil(t, err)
 	cv, ok = nr["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, cv.Len(), 2)
+	assert.Equal(t, cv.Count(), 2)
 	assert.NotNil(t, cv.ProdCountMap)
 	cm.RemoveNode(ctx, "xxx1")
 }
@@ -104,6 +104,7 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	assert.Equal(t, 2*maxCapacity, r["total"])
 	for _, node := range nodes {
 		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, maxCapacity, cap.Capacity)
 		assert.Equal(t, float64(0), cap.Usage)
 		assert.Equal(t, float64(0), cap.Rate)
 	}
@@ -125,6 +126,10 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 2*maxCapacity, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, maxCapacity, cap.Capacity)
+	}
 
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
@@ -139,6 +144,10 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, 1, cap.Capacity)
+	}
 
 	// more gpu
 	req = plugintypes.WorkloadResourceRequest{
@@ -149,6 +158,7 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, r["total"])
+	assert.Len(t, r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity), 0)
 
 	// 2 diffirent type of gpus
 	req = plugintypes.WorkloadResourceRequest{
@@ -160,6 +170,10 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 8, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, 4, cap.Capacity)
+	}
 
 	req = plugintypes.WorkloadResourceRequest{
 		"prod_count_map": types.ProdCountMap{
@@ -170,6 +184,49 @@ func TestGetNodesDeployCapacity(t *testing.T) {
 	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, 2, cap.Capacity)
+	}
+
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 2,
+			"nvidia-3090": 2,
+		},
+	}
+	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, 2, cap.Capacity)
+	}
+
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 4,
+			"nvidia-3090": 4,
+		},
+	}
+	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, r["total"])
+	for _, node := range nodes {
+		cap := r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity)[node]
+		assert.Equal(t, 1, cap.Capacity)
+	}
+
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 5,
+			"nvidia-3090": 4,
+		},
+	}
+	r, err = cm.GetNodesDeployCapacity(ctx, nodes, req)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, r["total"])
+	assert.Len(t, r["nodes_deploy_capacity_map"].(map[string]*plugintypes.NodeDeployCapacity), 0)
 }
 
 func TestSetNodeResourceCapacity(t *testing.T) {
@@ -185,7 +242,7 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	assert.Nil(t, err)
 	v, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
+	assert.Equal(t, v.Count(), 8)
 
 	nodeResource := plugintypes.NodeResource{
 		"prod_count_map": types.ProdCountMap{
@@ -203,62 +260,62 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
+	assert.Equal(t, v.Count(), 8)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
+	assert.Equal(t, v.Count(), 8)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 9)
+	assert.Equal(t, v.Count(), 9)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
+	assert.Equal(t, v.Count(), 8)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 9)
+	assert.Equal(t, v.Count(), 9)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResource, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 8)
+	assert.Equal(t, v.Count(), 8)
 
 	// overwirte node resource
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nodeResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest, nodeResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceCapacity(ctx, node, nil, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 }
 
 func TestGetAndFixNodeResourceInfo(t *testing.T) {
@@ -296,7 +353,7 @@ func TestGetAndFixNodeResourceInfo(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Len(t, r["diffs"].([]string), 3)
 	usage := r["usage"].(*types.NodeResource)
-	assert.Equal(t, usage.Len(), 2)
+	assert.Equal(t, usage.Count(), 2)
 	// _, ok := usage.ProdCountMap["0000:81:00.0"]
 	// assert.True(t, ok)
 }
@@ -311,10 +368,10 @@ func TestSetNodeResourceInfo(t *testing.T) {
 	assert.Nil(t, err)
 	cv, ok := r["capacity"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, 8, cv.Len())
+	assert.Equal(t, 8, cv.Count())
 	uv, ok := r["usage"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, 0, uv.Len())
+	assert.Equal(t, 0, uv.Count())
 
 	rcv := resourcetypes.RawParams{
 		"prod_count_map": cv.ProdCountMap,
@@ -336,7 +393,7 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.Nil(t, err)
 	v, ok := r["usage"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	nodeResource := plugintypes.NodeResource{
 		"prod_count_map": types.ProdCountMap{
@@ -362,55 +419,55 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 0)
+	assert.Equal(t, v.Count(), 0)
 
 	// overwirte usage node resource
 	// one params
@@ -418,45 +475,45 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, false, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	// two parmas
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, nil, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, workloadsResource, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, workloadsResource, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 
 	// three params
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, workloadsResource, false, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
-	assert.Equal(t, v.Len(), 1)
+	assert.Equal(t, v.Count(), 1)
 }
 
 func TestGetMostIdleNode(t *testing.T) {

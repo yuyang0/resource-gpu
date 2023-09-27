@@ -37,3 +37,9 @@ func TestNodeResource(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, n.ProdCountMap.TotalCount(), 6)
 }
+
+func TestNodeResourceRequest(t *testing.T) {
+	req := &NodeResourceRequest{}
+	err := req.Parse(nil)
+	assert.Nil(t, err)
+}

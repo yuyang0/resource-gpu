@@ -47,8 +47,8 @@ func (r *NodeResource) Sub(r1 *NodeResource) {
 	r.ProdCountMap.Sub(r1.ProdCountMap)
 }
 
-// Len
-func (r *NodeResource) Len() int {
+// Count
+func (r *NodeResource) Count() int {
 	return r.ProdCountMap.TotalCount()
 }
 
@@ -58,12 +58,12 @@ type NodeResourceInfo struct {
 	Usage    *NodeResource `json:"usage"`
 }
 
-func (n *NodeResourceInfo) CapLen() int {
-	return n.Capacity.Len()
+func (n *NodeResourceInfo) CapCount() int {
+	return n.Capacity.Count()
 }
 
-func (n *NodeResourceInfo) UsageLen() int {
-	return n.Usage.Len()
+func (n *NodeResourceInfo) UsageCount() int {
+	return n.Usage.Count()
 }
 
 // DeepCopy .
@@ -101,6 +101,10 @@ func (n *NodeResourceRequest) Parse(rawParams resourcetypes.RawParams) error {
 		n.ProdCountMap = ProdCountMap{}
 	}
 	return nil
+}
+
+func (n *NodeResourceRequest) Validate() error {
+	return n.ProdCountMap.Validate()
 }
 
 // Merge fields to NodeResourceRequest.

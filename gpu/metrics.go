@@ -39,13 +39,13 @@ func (p Plugin) GetMetrics(ctx context.Context, podname, nodename string) (*plug
 		{
 			"name":   "gpu_capacity",
 			"labels": []string{podname, nodename},
-			"value":  fmt.Sprintf("%+v", nodeResourceInfo.CapLen()),
+			"value":  fmt.Sprintf("%+v", nodeResourceInfo.CapCount()),
 			"key":    fmt.Sprintf("core.node.%s.gpu.capacity", safeNodename),
 		},
 		{
 			"name":   "gpu_used",
 			"labels": []string{podname, nodename},
-			"value":  fmt.Sprintf("%+v", nodeResourceInfo.UsageLen()),
+			"value":  fmt.Sprintf("%+v", nodeResourceInfo.UsageCount()),
 			"key":    fmt.Sprintf("core.node.%s.gpu.used", safeNodename),
 		},
 	}
