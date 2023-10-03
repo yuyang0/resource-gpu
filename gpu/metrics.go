@@ -17,13 +17,13 @@ func (p Plugin) GetMetricsDescription(context.Context) (*plugintypes.GetMetricsD
 			"name":   "gpu_capacity",
 			"help":   "node available gpu.",
 			"type":   "gauge",
-			"labels": []string{"podname", "nodename"},
+			"labels": []string{"podname", "nodename", "product"},
 		},
 		{
 			"name":   "gpu_used",
 			"help":   "node used gpu.",
 			"type":   "gauge",
-			"labels": []string{"podname", "nodename"},
+			"labels": []string{"podname", "nodename", "product"},
 		},
 	}, resp)
 }
@@ -35,19 +35,22 @@ func (p Plugin) GetMetrics(ctx context.Context, podname, nodename string) (*plug
 		return nil, err
 	}
 	safeNodename := strings.ReplaceAll(nodename, ".", "_")
-	metrics := []map[string]interface{}{
-		{
+	var metrics []map[string]any
+	for prod, count := range nodeResourceInfo.Capacity.ProdCountMap {
+		metrics = append(metrics, map[string]any{
 			"name":   "gpu_capacity",
-			"labels": []string{podname, nodename},
-			"value":  fmt.Sprintf("%+v", nodeResourceInfo.CapCount()),
+			"labels": []string{podname, nodename, prod},
+			"value":  fmt.Sprintf("%+v", count),
 			"key":    fmt.Sprintf("core.node.%s.gpu.capacity", safeNodename),
-		},
-		{
+		})
+	}
+	for prod, count := range nodeResourceInfo.Usage.ProdCountMap {
+		metrics = append(metrics, map[string]any{
 			"name":   "gpu_used",
-			"labels": []string{podname, nodename},
-			"value":  fmt.Sprintf("%+v", nodeResourceInfo.UsageCount()),
+			"labels": []string{podname, nodename, prod},
+			"value":  fmt.Sprintf("%+v", count),
 			"key":    fmt.Sprintf("core.node.%s.gpu.used", safeNodename),
-		},
+		})
 	}
 
 	resp := &plugintypes.GetMetricsResponse{}
