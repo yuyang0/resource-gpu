@@ -49,7 +49,7 @@ func Serve(c *cli.Context, f func(s *gpu.Plugin, in resourcetypes.RawParams) (in
 		fmt.Fprintf(os.Stderr, "GPU: input: %v\n", in)
 		fmt.Fprintf(os.Stderr, "GPU: output: %v\n", r)
 		return cli.Exit(err, 128)
-	} else {
+	} else { //nolint
 		fmt.Print(string(o))
 	}
 	return nil
