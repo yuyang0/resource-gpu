@@ -47,8 +47,16 @@ func (pcm ProdCountMap) Add(g1 ProdCountMap) {
 func (pcm ProdCountMap) Sub(g1 ProdCountMap) {
 	for prod, count := range g1 {
 		pcm[prod] -= count
-		if pcm[prod] <= 0 {
+		if pcm[prod] == 0 {
 			delete(pcm, prod)
+		}
+	}
+}
+
+func (pcm ProdCountMap) RemoveLTE0() {
+	for k, v := range pcm {
+		if v <= 0 {
+			delete(pcm, k)
 		}
 	}
 }

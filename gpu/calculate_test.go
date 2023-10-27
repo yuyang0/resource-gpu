@@ -92,8 +92,10 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams := d["engine_params"].(*types.EngineParams)
 	wResource := d["workload_resource"].(*types.WorkloadResource)
+	dResource := d["delta_resource"].(*types.WorkloadResource)
 	assert.Equal(t, eParams.Count(), 0)
 	assert.Equal(t, wResource.Count(), 0)
+	assert.Equal(t, dResource.Count(), 0)
 	// 2. empty request
 	origin = plugintypes.WorkloadResource{
 		"prod_count_map": types.ProdCountMap{
@@ -104,6 +106,7 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
+	dResource = d["delta_resource"].(*types.WorkloadResource)
 
 	assert.Equal(t, eParams.Count(), 1)
 	count, ok := eParams.ProdCountMap["nvidia-3090"]
@@ -114,6 +117,8 @@ func TestCalculateRealloc(t *testing.T) {
 	count, ok = wResource.ProdCountMap["nvidia-3090"]
 	assert.True(t, ok)
 	assert.Equal(t, count, 1)
+
+	assert.Equal(t, dResource.Count(), 0)
 	// 3. overwirte resource with request
 	origin = plugintypes.WorkloadResource{
 		"prod_count_map": types.ProdCountMap{
@@ -130,13 +135,18 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
+	dResource = d["delta_resource"].(*types.WorkloadResource)
 	assert.Equal(t, eParams.Count(), 3)
 	assert.Equal(t, wResource.Count(), 3)
+	assert.Equal(t, dResource.Count(), 2)
 
 	count, ok = wResource.ProdCountMap["nvidia-3090"]
 	assert.True(t, ok)
 	assert.Equal(t, count, 3)
 
+	count, ok = dResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 2)
 	// 4. Add origin resources to request
 	origin = plugintypes.WorkloadResource{
 		"prod_count_map": types.ProdCountMap{
@@ -154,6 +164,7 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
+	dResource = d["delta_resource"].(*types.WorkloadResource)
 
 	assert.Equal(t, eParams.Count(), 3)
 	count, ok = eParams.ProdCountMap["nvidia-3070"]
@@ -170,6 +181,14 @@ func TestCalculateRealloc(t *testing.T) {
 	count, ok = wResource.ProdCountMap["nvidia-3090"]
 	assert.True(t, ok)
 	assert.Equal(t, count, 2)
+
+	assert.Equal(t, dResource.Count(), 2)
+	count, ok = dResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+	count, ok = dResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
 
 	// remove GPU
 	origin = plugintypes.WorkloadResource{
@@ -188,11 +207,53 @@ func TestCalculateRealloc(t *testing.T) {
 	assert.Nil(t, err)
 	eParams = d["engine_params"].(*types.EngineParams)
 	wResource = d["workload_resource"].(*types.WorkloadResource)
+	dResource = d["delta_resource"].(*types.WorkloadResource)
+
 	assert.Equal(t, eParams.Count(), 1)
 	assert.Equal(t, wResource.Count(), 1)
 	count, ok = wResource.ProdCountMap["nvidia-3070"]
 	assert.True(t, ok)
 	assert.Equal(t, count, 1)
+
+	assert.Equal(t, dResource.Count(), 0)
+	count, ok = dResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+	count, ok = dResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, -1)
+	// smaller negative count
+	origin = plugintypes.WorkloadResource{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": 1,
+		},
+	}
+	req = plugintypes.WorkloadResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3090": -5,
+			"nvidia-3070": 1,
+		},
+	}
+
+	d, err = cm.CalculateRealloc(ctx, node, origin, req)
+	assert.Nil(t, err)
+	eParams = d["engine_params"].(*types.EngineParams)
+	wResource = d["workload_resource"].(*types.WorkloadResource)
+	dResource = d["delta_resource"].(*types.WorkloadResource)
+
+	assert.Equal(t, eParams.Count(), 1)
+	assert.Equal(t, wResource.Count(), 1)
+	count, ok = wResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+
+	assert.Equal(t, dResource.Count(), 0)
+	count, ok = dResource.ProdCountMap["nvidia-3070"]
+	assert.True(t, ok)
+	assert.Equal(t, count, 1)
+	count, ok = dResource.ProdCountMap["nvidia-3090"]
+	assert.True(t, ok)
+	assert.Equal(t, count, -1)
 }
 
 func TestCalculateRemap(t *testing.T) {
