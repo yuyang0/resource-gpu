@@ -316,6 +316,30 @@ func TestSetNodeResourceCapacity(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 0)
+
+	// for negative add
+	nodeResourceRequest1 := plugintypes.NodeResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+		},
+	}
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest1, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Count(), 1)
+
+	nodeResourceRequest1 = plugintypes.NodeResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": -1,
+		},
+	}
+	r, err = cm.SetNodeResourceCapacity(ctx, node, nodeResourceRequest1, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Count(), 0)
+
 }
 
 func TestGetAndFixNodeResourceInfo(t *testing.T) {
@@ -421,6 +445,7 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 0)
 
+	// all are nil
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
@@ -433,12 +458,14 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 1)
 
+	// only request is  not nil
 	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nil, nil, true, false)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 0)
 
+	// only resource is not nil
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nodeResource, nil, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
@@ -451,6 +478,7 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 0)
 
+	// only workload resource is not nil
 	r, err = cm.SetNodeResourceUsage(ctx, node, nil, nil, workloadsResource, true, true)
 	assert.Nil(t, err)
 	v, ok = r["after"].(*types.NodeResource)
@@ -514,6 +542,36 @@ func TestSetNodeResourceUsage(t *testing.T) {
 	v, ok = r["after"].(*types.NodeResource)
 	assert.True(t, ok)
 	assert.Equal(t, v.Count(), 1)
+
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest, nodeResource, workloadsResource, true, false)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Count(), 0)
+
+	// for negative add
+	nodeResourceRequest1 := plugintypes.NodeResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": 1,
+		},
+	}
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest1, nil, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Count(), 1)
+
+	nodeResourceRequest1 = plugintypes.NodeResourceRequest{
+		"prod_count_map": types.ProdCountMap{
+			"nvidia-3070": -1,
+		},
+	}
+	r, err = cm.SetNodeResourceUsage(ctx, node, nodeResourceRequest1, nil, nil, true, true)
+	assert.Nil(t, err)
+	v, ok = r["after"].(*types.NodeResource)
+	assert.True(t, ok)
+	assert.Equal(t, v.Count(), 0)
+
 }
 
 func TestGetMostIdleNode(t *testing.T) {
