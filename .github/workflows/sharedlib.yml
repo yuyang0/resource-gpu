@@ -1,0 +1,27 @@
+name: build shared library
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Setup go"
+        uses: actions/setup-go@v4
+
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: "Build shared library"
+        run: |
+          bash build-sharedlib.sh
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: eru-gpu-shared-plugin
+          path: resource-gpu.so
