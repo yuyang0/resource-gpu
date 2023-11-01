@@ -37,3 +37,6 @@ unit-test:
 
 lint:
 	golangci-lint run
+
+clean:
+	rm -f resource-gpu resource-gpu.so

@@ -13,3 +13,4 @@ EOF
 
 go build -buildmode=plugin -mod=readonly github.com/yuyang0/resource-gpu
 cp resource-gpu.so $CURDIR
+rm -rf /tmp/core
