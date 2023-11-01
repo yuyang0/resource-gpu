@@ -47,7 +47,8 @@ func generateNodes(
 	}
 	t.Cleanup(func() {
 		for name := range reqs {
-			assert.NoError(t, cm.RemoveNode(ctx, name))
+			_, err := cm.RemoveNode(ctx, name)
+			assert.NoError(t, err)
 		}
 	})
 	return names
@@ -67,7 +68,8 @@ func generateEmptyNodes(
 	}
 	t.Cleanup(func() {
 		for name := range reqs {
-			assert.NoError(t, cm.RemoveNode(ctx, name))
+			_, err := cm.RemoveNode(ctx, name)
+			assert.NoError(t, err)
 		}
 	})
 	return names

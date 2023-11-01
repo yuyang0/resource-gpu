@@ -20,6 +20,12 @@ func NewNodeResource(gm ProdCountMap) *NodeResource {
 	return r
 }
 
+func (r *NodeResource) AsRawParams() resourcetypes.RawParams {
+	return resourcetypes.RawParams{
+		"prod_count_map": r.ProdCountMap,
+	}
+}
+
 // Parse .
 func (r *NodeResource) Parse(rawParams resourcetypes.RawParams) error {
 	return mapstructure.Decode(rawParams, r)

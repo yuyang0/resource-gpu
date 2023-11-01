@@ -10,6 +10,11 @@ type WorkloadResource struct {
 	ProdCountMap ProdCountMap `json:"prod_count_map" mapstructure:"prod_count_map"`
 }
 
+func (w *WorkloadResource) AsRawParams() resourcetypes.RawParams {
+	return resourcetypes.RawParams{
+		"prod_count_map": w.ProdCountMap,
+	}
+}
 func (w *WorkloadResource) Validate() error {
 	return w.ProdCountMap.Validate()
 }

@@ -11,7 +11,12 @@ import (
 )
 
 // CalculateDeploy .
-func (p Plugin) CalculateDeploy(ctx context.Context, nodename string, deployCount int, resourceRequest plugintypes.WorkloadResourceRequest) (resourcetypes.RawParams, error) {
+func (p Plugin) CalculateDeploy(
+	ctx context.Context, nodename string, deployCount int,
+	resourceRequest plugintypes.WorkloadResourceRequest,
+) (
+	*plugintypes.CalculateDeployResponse, error,
+) {
 	logger := log.WithFunc("resource.gpu.CalculateDeploy").WithField("node", nodename)
 	req := &gputypes.WorkloadResourceRequest{}
 	if err := req.Parse(resourceRequest); err != nil {
@@ -36,14 +41,28 @@ func (p Plugin) CalculateDeploy(ctx context.Context, nodename string, deployCoun
 		return nil, err
 	}
 
-	return resourcetypes.RawParams{
-		"engines_params":     enginesParams,
-		"workloads_resource": workloadsResource,
+	epRaws := make([]resourcetypes.RawParams, 0, len(enginesParams))
+	for _, ep := range enginesParams {
+		epRaws = append(epRaws, ep.AsRawParams())
+	}
+	wrRaws := make([]resourcetypes.RawParams, 0, len(workloadsResource))
+	for _, wr := range workloadsResource {
+		wrRaws = append(wrRaws, wr.AsRawParams())
+	}
+	return &plugintypes.CalculateDeployResponse{
+		EnginesParams:     epRaws,
+		WorkloadsResource: wrRaws,
 	}, nil
 }
 
 // CalculateRealloc .
-func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource plugintypes.WorkloadResource, resourceRequest plugintypes.WorkloadResourceRequest) (resourcetypes.RawParams, error) {
+func (p Plugin) CalculateRealloc(
+	ctx context.Context, nodename string,
+	resource plugintypes.WorkloadResource,
+	resourceRequest plugintypes.WorkloadResourceRequest,
+) (
+	*plugintypes.CalculateReallocResponse, error,
+) {
 	req := &gputypes.WorkloadResourceRequest{}
 	if err := req.Parse(resourceRequest); err != nil {
 		return nil, err
@@ -89,17 +108,17 @@ func (p Plugin) CalculateRealloc(ctx context.Context, nodename string, resource 
 	deltaWorkloadResource := newResource.DeepCopy()
 	deltaWorkloadResource.Sub(originResource)
 
-	return resourcetypes.RawParams{
-		"engine_params":     engineParams,
-		"delta_resource":    deltaWorkloadResource,
-		"workload_resource": newResource,
+	return &plugintypes.CalculateReallocResponse{
+		EngineParams:     engineParams.AsRawParams(),
+		DeltaResource:    deltaWorkloadResource.AsRawParams(),
+		WorkloadResource: newResource.AsRawParams(),
 	}, nil
 }
 
 // CalculateRemap .
-func (p Plugin) CalculateRemap(context.Context, string, map[string]plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
-	return resourcetypes.RawParams{
-		"engine_params_map": nil,
+func (p Plugin) CalculateRemap(context.Context, string, map[string]plugintypes.WorkloadResource) (*plugintypes.CalculateRemapResponse, error) {
+	return &plugintypes.CalculateRemapResponse{
+		EngineParamsMap: nil,
 	}, nil
 }
 

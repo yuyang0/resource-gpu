@@ -55,6 +55,6 @@ func removeNode(c *cli.Context) error {
 		if nodename == "" {
 			return nil, types.ErrEmptyNodeName
 		}
-		return nil, s.RemoveNode(c.Context, nodename)
+		return s.RemoveNode(c.Context, nodename)
 	})
 }

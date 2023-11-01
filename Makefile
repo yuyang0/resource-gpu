@@ -17,6 +17,9 @@ deps:
 binary:
 	go build -ldflags "$(GO_LDFLAGS)" -o resource-gpu
 
+so:
+	CGO_ENABLED=1 go build -ldflags "$(GO_LDFLAGS)" -buildmode=plugin -o resource-gpu.so
+
 build: deps binary
 
 test: deps unit-test

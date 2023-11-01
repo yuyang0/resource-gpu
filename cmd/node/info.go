@@ -54,7 +54,7 @@ func setNodeResourceInfo(c *cli.Context) error {
 		capacity := in.RawParams("capacity")
 		usage := in.RawParams("usage")
 
-		return nil, s.SetNodeResourceInfo(c.Context, nodename, capacity, usage)
+		return s.SetNodeResourceInfo(c.Context, nodename, capacity, usage)
 	})
 }
 

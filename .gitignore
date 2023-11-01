@@ -1,4 +1,5 @@
 core
+*.so
 dev*.yaml
 eru-core
 core.yaml

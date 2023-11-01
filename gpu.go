@@ -1,18 +1,26 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/projecteru2/core/resource/plugins"
+	coretypes "github.com/projecteru2/core/types"
+	"github.com/urfave/cli/v2"
 	"github.com/yuyang0/resource-gpu/cmd"
 	"github.com/yuyang0/resource-gpu/cmd/calculate"
 	"github.com/yuyang0/resource-gpu/cmd/gpu"
 	"github.com/yuyang0/resource-gpu/cmd/metrics"
 	"github.com/yuyang0/resource-gpu/cmd/node"
+	gpulib "github.com/yuyang0/resource-gpu/gpu"
 	"github.com/yuyang0/resource-gpu/version"
-
-	"github.com/urfave/cli/v2"
 )
+
+func NewPlugin(ctx context.Context, config coretypes.Config) (plugins.Plugin, error) {
+	p, err := gpulib.NewPlugin(ctx, config, nil)
+	return p, err
+}
 
 func main() {
 	cli.VersionPrinter = func(c *cli.Context) {

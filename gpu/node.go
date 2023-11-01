@@ -11,7 +11,6 @@ import (
 	"github.com/projecteru2/core/log"
 	plugintypes "github.com/projecteru2/core/resource/plugins/types"
 
-	resourcetypes "github.com/projecteru2/core/resource/types"
 	coretypes "github.com/projecteru2/core/types"
 	"github.com/projecteru2/core/utils"
 	"github.com/sanity-io/litter"
@@ -23,7 +22,13 @@ const (
 )
 
 // AddNode .
-func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintypes.NodeResourceRequest, info *enginetypes.Info) (resourcetypes.RawParams, error) {
+func (p Plugin) AddNode(
+	ctx context.Context, nodename string,
+	resource plugintypes.NodeResourceRequest,
+	info *enginetypes.Info,
+) (
+	*plugintypes.AddNodeResponse, error,
+) {
 	// try to get the node resource
 	var err error
 	if _, err = p.doGetNodeResourceInfo(ctx, nodename); err == nil {
@@ -62,23 +67,28 @@ func (p Plugin) AddNode(ctx context.Context, nodename string, resource plugintyp
 	if err = p.doSetNodeResourceInfo(ctx, nodename, nodeResourceInfo); err != nil {
 		return nil, err
 	}
-	return resourcetypes.RawParams{
-		"capacity": nodeResourceInfo.Capacity,
-		"usage":    nodeResourceInfo.Usage,
+	return &plugintypes.AddNodeResponse{
+		Capacity: nodeResourceInfo.Capacity.AsRawParams(),
+		Usage:    nodeResourceInfo.Usage.AsRawParams(),
 	}, nil
 }
 
 // RemoveNode .
-func (p Plugin) RemoveNode(ctx context.Context, nodename string) error {
+func (p Plugin) RemoveNode(ctx context.Context, nodename string) (*plugintypes.RemoveNodeResponse, error) {
 	var err error
 	if _, err = p.store.Delete(ctx, fmt.Sprintf(nodeResourceInfoKey, nodename)); err != nil {
 		log.WithFunc("resource.gpu.RemoveNode").WithField("node", nodename).Error(ctx, err, "faield to delete node")
 	}
-	return err
+	return &plugintypes.RemoveNodeResponse{}, err
 }
 
 // GetNodesDeployCapacity returns available nodes and total capacity
-func (p Plugin) GetNodesDeployCapacity(ctx context.Context, nodenames []string, resource plugintypes.WorkloadResourceRequest) (resourcetypes.RawParams, error) {
+func (p Plugin) GetNodesDeployCapacity(
+	ctx context.Context, nodenames []string,
+	resource plugintypes.WorkloadResourceRequest,
+) (
+	*plugintypes.GetNodesDeployCapacityResponse, error,
+) {
 	logger := log.WithFunc("resource.gpu.GetNodesDeployCapacity")
 	req := &gputypes.WorkloadResourceRequest{}
 	if err := req.Parse(resource); err != nil {
@@ -109,9 +119,9 @@ func (p Plugin) GetNodesDeployCapacity(ctx context.Context, nodenames []string, 
 			}
 		}
 	}
-	return resourcetypes.RawParams{
-		"nodes_deploy_capacity_map": nodesDeployCapacityMap,
-		"total":                     total,
+	return &plugintypes.GetNodesDeployCapacityResponse{
+		NodeDeployCapacityMap: nodesDeployCapacityMap,
+		Total:                 total,
 	}, nil
 }
 
@@ -122,7 +132,7 @@ func (p Plugin) SetNodeResourceCapacity(
 	resource plugintypes.NodeResource,
 	delta bool, incr bool,
 ) (
-	resourcetypes.RawParams, error,
+	*plugintypes.SetNodeResourceCapacityResponse, error,
 ) {
 	logger := log.WithFunc("resource.gpu.SetNodeResourceCapacity").WithField("node", "nodename")
 	req, nodeResource, _, err := p.parseNodeResourceInfos(resourceRequest, resource, nil)
@@ -147,42 +157,53 @@ func (p Plugin) SetNodeResourceCapacity(
 		return nil, err
 	}
 
-	return resourcetypes.RawParams{
-		"before": before,
-		"after":  nodeResourceInfo.Capacity,
+	return &plugintypes.SetNodeResourceCapacityResponse{
+		Before: before.AsRawParams(),
+		After:  nodeResourceInfo.Capacity.AsRawParams(),
 	}, nil
 }
 
 // GetNodeResourceInfo .
-func (p Plugin) GetNodeResourceInfo(ctx context.Context, nodename string, workloadsResource []plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
+func (p Plugin) GetNodeResourceInfo(
+	ctx context.Context, nodename string,
+	workloadsResource []plugintypes.WorkloadResource,
+) (
+	*plugintypes.GetNodeResourceInfoResponse, error,
+) {
 	nodeResourceInfo, _, diffs, err := p.getNodeResourceInfo(ctx, nodename, workloadsResource)
 	if err != nil {
 		return nil, err
 	}
 
-	return resourcetypes.RawParams{
-		"capacity": nodeResourceInfo.Capacity,
-		"usage":    nodeResourceInfo.Usage,
-		"diffs":    diffs,
+	return &plugintypes.GetNodeResourceInfoResponse{
+		Capacity: nodeResourceInfo.Capacity.AsRawParams(),
+		Usage:    nodeResourceInfo.Usage.AsRawParams(),
+		Diffs:    diffs,
 	}, nil
 }
 
 // SetNodeResourceInfo .
-func (p Plugin) SetNodeResourceInfo(ctx context.Context, nodename string, capacity plugintypes.NodeResource, usage plugintypes.NodeResource) error {
+func (p Plugin) SetNodeResourceInfo(
+	ctx context.Context, nodename string,
+	capacity plugintypes.NodeResource,
+	usage plugintypes.NodeResource,
+) (
+	*plugintypes.SetNodeResourceInfoResponse, error,
+) {
 	capacityResource := &gputypes.NodeResource{}
 	usageResource := &gputypes.NodeResource{}
 	if err := capacityResource.Parse(capacity); err != nil {
-		return err
+		return nil, err
 	}
 	if err := usageResource.Parse(usage); err != nil {
-		return err
+		return nil, err
 	}
 	resourceInfo := &gputypes.NodeResourceInfo{
 		Capacity: capacityResource,
 		Usage:    usageResource,
 	}
 
-	return p.doSetNodeResourceInfo(ctx, nodename, resourceInfo)
+	return &plugintypes.SetNodeResourceInfoResponse{}, p.doSetNodeResourceInfo(ctx, nodename, resourceInfo)
 }
 
 // SetNodeResourceUsage .
@@ -193,7 +214,7 @@ func (p Plugin) SetNodeResourceUsage(
 	workloadsResource []plugintypes.WorkloadResource,
 	delta bool, incr bool,
 ) (
-	resourcetypes.RawParams, error,
+	*plugintypes.SetNodeResourceUsageResponse, error,
 ) {
 
 	logger := log.WithFunc("resource.gpu.SetNodeResourceUsage").WithField("node", "nodename")
@@ -216,14 +237,14 @@ func (p Plugin) SetNodeResourceUsage(
 		return nil, err
 	}
 
-	return resourcetypes.RawParams{
-		"before": before,
-		"after":  nodeResourceInfo.Usage,
+	return &plugintypes.SetNodeResourceUsageResponse{
+		Before: before.AsRawParams(),
+		After:  nodeResourceInfo.Usage.AsRawParams(),
 	}, nil
 }
 
 // GetMostIdleNode .
-func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (resourcetypes.RawParams, error) {
+func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (*plugintypes.GetMostIdleNodeResponse, error) {
 	var mostIdleNode string
 	var minIdle = math.MaxFloat64
 
@@ -243,15 +264,15 @@ func (p Plugin) GetMostIdleNode(ctx context.Context, nodenames []string) (resour
 			minIdle = idle
 		}
 	}
-	return resourcetypes.RawParams{
-		"nodename": mostIdleNode,
-		"priority": priority,
+	return &plugintypes.GetMostIdleNodeResponse{
+		Nodename: mostIdleNode,
+		Priority: priority,
 	}, nil
 }
 
 // FixNodeResource .
 // use workloadsReource to construct a new NodeResource, then use this NodeResource to repace Usage
-func (p Plugin) FixNodeResource(ctx context.Context, nodename string, workloadsResource []plugintypes.WorkloadResource) (resourcetypes.RawParams, error) {
+func (p Plugin) FixNodeResource(ctx context.Context, nodename string, workloadsResource []plugintypes.WorkloadResource) (*plugintypes.GetNodeResourceInfoResponse, error) {
 	nodeResourceInfo, actuallyWorkloadsUsage, diffs, err := p.getNodeResourceInfo(ctx, nodename, workloadsResource)
 	if err != nil {
 		return nil, err
@@ -266,10 +287,10 @@ func (p Plugin) FixNodeResource(ctx context.Context, nodename string, workloadsR
 			diffs = append(diffs, err.Error())
 		}
 	}
-	return resourcetypes.RawParams{
-		"capacity": nodeResourceInfo.Capacity,
-		"usage":    nodeResourceInfo.Usage,
-		"diffs":    diffs,
+	return &plugintypes.GetNodeResourceInfoResponse{
+		Capacity: nodeResourceInfo.Capacity.AsRawParams(),
+		Usage:    nodeResourceInfo.Usage.AsRawParams(),
+		Diffs:    diffs,
 	}, nil
 }
 
