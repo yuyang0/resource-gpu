@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	resourcetypes "github.com/projecteru2/core/resource/types"
 )
 
@@ -82,9 +83,12 @@ func (n *NodeResourceInfo) DeepCopy() *NodeResourceInfo {
 
 func (n *NodeResourceInfo) Validate() error {
 	if err := n.Capacity.Validate(); err != nil {
-		return err
+		return errors.Wrap(err, "invaid capacity")
 	}
-	return n.Usage.Validate()
+	if err := n.Usage.Validate(); err != nil {
+		return errors.Wrap(err, "invalid usage")
+	}
+	return nil
 }
 
 func (n *NodeResourceInfo) GetAvailableResource() *NodeResource {

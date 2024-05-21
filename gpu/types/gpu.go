@@ -11,7 +11,7 @@ type ProdCountMap map[string]int
 func (pcm ProdCountMap) Validate() error {
 	for prod, count := range pcm {
 		if count <= 0 {
-			return errors.Wrapf(ErrInvalidGPUMap, "count is less or equal to zero")
+			return errors.Wrapf(ErrInvalidGPUMap, "count is less or equal to zero: <product: %s, count: %d>", prod, count)
 		}
 		if strings.Trim(prod, " ") == "" {
 			return errors.Wrapf(ErrInvalidGPUProduct, "product is empty")
