@@ -23,7 +23,7 @@ func NewPlugin(ctx context.Context, config coretypes.Config) (plugins.Plugin, er
 }
 
 func main() {
-	cli.VersionPrinter = func(c *cli.Context) {
+	cli.VersionPrinter = func(_ *cli.Context) {
 		fmt.Print(version.String())
 	}
 
