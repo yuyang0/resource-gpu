@@ -317,9 +317,14 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 	if actuallyWorkloadsUsage.Count() != nodeResourceInfo.UsageCount() {
 		diffs = append(diffs, fmt.Sprintf("node.GPUUsed != sum(workload.GPURequest): %.2d != %.2d", nodeResourceInfo.UsageCount(), actuallyWorkloadsUsage.Count()))
 	}
-	for addr := range actuallyWorkloadsUsage.ProdCountMap {
-		if _, ok := nodeResourceInfo.Usage.ProdCountMap[addr]; !ok {
-			diffs = append(diffs, fmt.Sprintf("%s not in usage", addr))
+	for prod, count1 := range actuallyWorkloadsUsage.ProdCountMap {
+		count2, ok := nodeResourceInfo.Usage.ProdCountMap[prod]
+		if !ok {
+			diffs = append(diffs, fmt.Sprintf("%s not in usage", prod))
+			continue
+		}
+		if count1 != count2 {
+			diffs = append(diffs, fmt.Sprintf("%s: %.2d != %.2d", prod, count1, count2))
 		}
 	}
 
