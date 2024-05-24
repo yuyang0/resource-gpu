@@ -409,6 +409,8 @@ func (p Plugin) doGetNodeDeployCapacity(nodeResourceInfo *gputypes.NodeResourceI
 				capacityInfo.Capacity = prodCap
 			}
 			if capacityInfo.Capacity <= 0 {
+				// Capacity may be negative integer, set it to zero here
+				capacityInfo.Capacity = 0
 				break
 			}
 		}
