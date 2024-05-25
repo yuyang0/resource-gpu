@@ -324,7 +324,7 @@ func (p Plugin) getNodeResourceInfo(ctx context.Context, nodename string, worklo
 			continue
 		}
 		if count1 != count2 {
-			diffs = append(diffs, fmt.Sprintf("%s: %.2d != %.2d", prod, count1, count2))
+			diffs = append(diffs, fmt.Sprintf("%s: actual(%d) != usage(%d)", prod, count1, count2))
 		}
 	}
 
